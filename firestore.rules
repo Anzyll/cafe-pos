@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check role
+    function hasRole(role) {
+      return request.auth != null && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
+    }
+
+    // Users: Users can read their own profile, Admin can manage all
+    match /users/{userId} {
+      allow read: if request.auth != null && (request.auth.uid == userId || hasRole('admin'));
+      allow write: if hasRole('admin');
+    }
+
+    // Menu: Public read (for menu visibility), Admin write
+    match /menu/{item} {
+      allow read: if request.auth != null; // Waiters need to read
+      allow write: if hasRole('admin');
+    }
+
+    // Tables: Authenticated read, Waiter/Cashier/Admin update status
+    match /tables/{table} {
+      allow read: if request.auth != null;
+      allow update: if hasRole('waiter') || hasRole('cashier') || hasRole('admin');
+      allow create, delete: if hasRole('admin');
+    }
+
+    // Orders: 
+    // - Waiter: Create (status: pending)
+    // - Cashier: Update (status: paid)
+    // - Admin: Read all
+    match /orders/{order} {
+      allow read: if request.auth != null;
+      allow create: if hasRole('waiter') || hasRole('admin');
+      allow update: if (hasRole('cashier') && request.resource.data.status == 'paid') || hasRole('admin');
+    }
+  }
+}
