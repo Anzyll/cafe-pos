@@ -1,25 +1,47 @@
-export const formatBillToText = (order, items) => {
+// lib/whatsapp.js
+export const formatBillToText = (order, tableNumber) => {
     const cafeName = "The Cozy Cup Cafe";
     const date = new Date().toLocaleDateString();
     const time = new Date().toLocaleTimeString();
 
     let text = `*${cafeName}*\n`;
-    text += `Date: ${date} ${time}\n`;
-    text += `Order #${order.id.slice(0, 6)}\n`;
-    text += `Table: ${order.tableNumber}\n\n`;
-
+    text += `📅 Date: ${date} ${time}\n`;
+    text += `📋 Order #${order.id.slice(0, 6)}\n`;
+    text += `🪑 Table: ${tableNumber}\n\n`;
+    
     text += `*Items:*\n`;
     order.items.forEach(item => {
-        text += `${item.name} x${item.qty} - ₹${item.price * item.qty}\n`;
+        text += `${item.qty}x ${item.name} - ₹${item.price * item.qty}\n`;
     });
+    
+    text += `\n─────────────────\n`;
+    text += `*Subtotal: ₹${order.totalAmount}*\n`;
+    text += `*GST (18%): ₹${(order.totalAmount * 0.18).toFixed(2)}*\n`;
+    text += `*Total: ₹${(order.totalAmount * 1.18).toFixed(2)}*\n\n`;
+    text += `Thank you for visiting! 🍵\n`;
+    text += `Hope to see you again soon!`;
 
-    text += `\n*Total: ₹${order.totalAmount}*\n\n`;
-    text += `Thank you for visiting!`;
-
-    return encodeURIComponent(text);
+    return text;
 };
 
 export const shareBillOnWhatsApp = (phone, text) => {
-    const url = `https://wa.me/${phone}?text=${text}`;
-    window.open(url, '_blank');
+    // Clean phone number (remove +, spaces, etc.)
+    const cleanPhone = phone.replace(/\D/g, '');
+    
+    // Validate phone number
+    if (cleanPhone.length < 10) {
+        alert("Invalid phone number. Please enter a valid number with country code.");
+        return;
+    }
+    
+    // Use WhatsApp API URL
+    const encodedText = encodeURIComponent(text);
+    const url = `https://wa.me/${cleanPhone}?text=${encodedText}`;
+    
+    // Open in new tab
+    window.open(url, '_blank', 'noopener,noreferrer');
+    
+    // Alternative for web.whatsapp.com (for desktop users)
+    // const webUrl = `https://web.whatsapp.com/send?phone=${cleanPhone}&text=${encodedText}&app_absent=1`;
+    // window.open(webUrl, '_blank', 'noopener,noreferrer');
 };

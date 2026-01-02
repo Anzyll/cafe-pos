@@ -11,6 +11,8 @@ export default function CashierDashboard() {
     const [activeOrder, setActiveOrder] = useState(null);
     const [customerPhone, setCustomerPhone] = useState('');
     const [loading, setLoading] = useState(true);
+    const [phoneError, setPhoneError] = useState('');
+
 
     useEffect(() => {
         // Real-time Tables
@@ -48,39 +50,79 @@ export default function CashierDashboard() {
         setCustomerPhone(''); // Reset phone input
     };
 
-    const handleCheckout = async () => {
-        if (!activeOrder) return;
-        if (!confirm(`Mark Order #${activeOrder.id.slice(0, 6)} as PAID?`)) return;
+  const handleCheckout = async () => {
+    if (!activeOrder) return;
+    if (!confirm(`Mark Order #${activeOrder.id.slice(0, 6)} as PAID?`)) return;
 
-        try {
-            // 1. Update Order Status
-            await updateDoc(doc(db, 'orders', activeOrder.id), {
-                status: 'paid',
-                paidAt: serverTimestamp()
-            });
-
-            // 2. Free the Table
-            await updateDoc(doc(db, 'tables', selectedTable.id), {
-                status: 'free'
-            });
-
-            alert('Checkout Successful!');
-            setSelectedTable(null);
-        } catch (error) {
-            console.error("Checkout failed", error);
-            alert("Checkout failed: " + error.message);
-        }
-    };
-
-    const handleShareWhatsApp = () => {
-        if (!activeOrder) return;
+    try {
+        // Optional: Prompt for phone number if not already entered
         if (!customerPhone) {
-            alert("Please enter customer phone number (with country code, e.g., 919876543210)");
-            return;
+            const phone = prompt("Enter customer's WhatsApp number (with country code):");
+            if (!phone) {
+                alert("Phone number is required for checkout");
+                return;
+            }
+            const cleanPhone = phone.replace(/\D/g, '');
+            if (cleanPhone.length < 10) {
+                alert("Invalid phone number");
+                return;
+            }
+            setCustomerPhone(cleanPhone);
+            
+            // Auto-share bill on WhatsApp
+            const text = formatBillToText(activeOrder, selectedTable.number);
+            shareBillOnWhatsApp(cleanPhone, text);
+        } else {
+            // Auto-share with existing phone number
+            const text = formatBillToText(activeOrder, selectedTable.number);
+            shareBillOnWhatsApp(customerPhone, text);
         }
-        const text = formatBillToText(activeOrder);
-        shareBillOnWhatsApp(customerPhone, text);
-    };
+
+        // 1. Update Order Status
+        await updateDoc(doc(db, 'orders', activeOrder.id), {
+            status: 'paid',
+            paidAt: serverTimestamp(),
+            ...(customerPhone && { customerPhone: customerPhone.replace(/\D/g, '') }),
+            whatsappSent: true,
+            whatsappSentAt: serverTimestamp()
+        });
+
+        // 2. Free the Table
+        await updateDoc(doc(db, 'tables', selectedTable.id), {
+            status: 'free'
+        });
+
+        alert('Checkout Successful! Bill shared on WhatsApp.');
+        setSelectedTable(null);
+        setCustomerPhone('');
+    } catch (error) {
+        console.error("Checkout failed", error);
+        alert("Checkout failed: " + error.message);
+    }
+};
+
+ const handleShareWhatsApp = () => {
+    if (!activeOrder || !selectedTable) return;
+
+    const cleanPhone = customerPhone.replace(/\D/g, '');
+    if (cleanPhone.length < 10) {
+        alert("Invalid phone number");
+        return;
+    }
+
+    const text = formatBillToText(activeOrder, selectedTable.number);
+
+    // 🔴 OPEN WHATSAPP FIRST
+    shareBillOnWhatsApp(cleanPhone, text);
+
+    // 🔵 THEN do async work (optional)
+    updateDoc(doc(db, 'orders', activeOrder.id), {
+        customerPhone: cleanPhone,
+        whatsappSent: true,
+        whatsappSentAt: serverTimestamp()
+    }).catch(console.error);
+};
+
 
     return (
         <div className="h-[calc(100vh-100px)] flex gap-6">
