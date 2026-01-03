@@ -15,12 +15,9 @@ export const formatBillToText = (order, tableNumber) => {
     });
     
     text += `\n─────────────────\n`;
-    text += `*Subtotal: ₹${order.totalAmount}*\n`;
-    text += `*GST (18%): ₹${(order.totalAmount * 0.18).toFixed(2)}*\n`;
-    text += `*Total: ₹${(order.totalAmount * 1.18).toFixed(2)}*\n\n`;
+    text += `*Total: ₹${order.totalAmount}*\n`;
     text += `Thank you for visiting! 🍵\n`;
     text += `Hope to see you again soon!`;
-
     return text;
 };
 
