@@ -35,61 +35,88 @@ export default function Login() {
         }
     };
 
-    return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-100 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-                <div className="p-8">
-                    <div className="flex justify-center mb-6">
-                        <div className="w-16 h-16 bg-indigo-600 rounded-full flex items-center justify-center text-white">
-                            <Coffee size={32} />
-                        </div>
-                    </div>
-                    <h2 className="text-3xl font-bold text-center text-gray-800 mb-2">Welcome Back</h2>
-                    <p className="text-center text-gray-500 mb-8">Sign in to access your dashboard</p>
-
-                    {error && (
-                        <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-6 text-sm text-center">
-                            {error}
-                        </div>
-                    )}
-
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                            <input
-                                type="email"
-                                required
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-colors"
-                                placeholder="you@example.com"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                            <input
-                                type="password"
-                                required
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-colors"
-                                placeholder="••••••••"
-                            />
-                        </div>
-
-                        <button
-                            type="submit"
-                            disabled={isLoggingIn}
-                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg transition-colors shadow-lg shadow-indigo-200 disabled:opacity-70"
-                        >
-                            {isLoggingIn ? 'Signing in...' : 'Sign In'}
-                        </button>
-                    </form>
-                </div>
-                <div className="bg-gray-50 p-4 text-center text-xs text-gray-400">
-                    Cafe POS System v1.0
-                </div>
-            </div>
+   return (
+  <div className="min-h-screen bg-gradient-to-br from-brand-orange/10 to-brand-orange/5 flex items-center justify-center p-4">
+    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-brand-orange/20">
+      
+      <div className="p-8">
+        {/* Logo */}
+        <div className="flex justify-center mb-6">
+          <div className="w-16 h-16 bg-brand-orange rounded-full flex items-center justify-center text-white shadow-lg">
+            <Coffee size={32} />
+          </div>
         </div>
-    );
+
+        <h2 className="text-3xl font-bold text-center text-gray-800 mb-2">
+          Welcome Back
+        </h2>
+        <p className="text-center text-gray-500 mb-8">
+          Sign in to access your dashboard
+        </p>
+
+        {error && (
+          <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-6 text-sm text-center border border-red-200">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          
+          {/* Email */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email Address
+            </label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg
+                focus:ring-1 focus:ring-brand-orange
+                focus:border-brand-orange
+                outline-none transition-colors"
+            />
+          </div>
+
+          {/* Password */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Password
+            </label>
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg
+                focus:ring-1 focus:ring-brand-orange
+                focus:border-brand-orange
+                outline-none transition-colors"
+            />
+          </div>
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={isLoggingIn}
+            className="w-full bg-brand-orange hover:bg-brand-orangeDark
+              text-white font-semibold py-3 rounded-lg
+              transition-colors shadow-lg shadow-brand-orange/30
+              disabled:opacity-70"
+          >
+            {isLoggingIn ? 'Signing in...' : 'Sign In'}
+          </button>
+        </form>
+      </div>
+
+      {/* Footer */}
+      <div className="bg-brand-orange/5 p-4 text-center text-xs text-gray-400 border-t border-brand-orange/10">
+        Cafe POS System v1.0
+      </div>
+    </div>
+  </div>
+);
 }
