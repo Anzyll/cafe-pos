@@ -4,8 +4,17 @@ export default {
         "./index.html",
         "./src/**/*.{js,ts,jsx,tsx}",
     ],
-    theme: {
-        extend: {},
-    },
+     theme: {
+    extend: {
+      colors: {
+        brand: {
+          orange: '#EA6031',
+          orangeDark: '#D1542B',
+          orangeLight: '#F07A4A'
+        }
+      }
+    }
+  },
     plugins: [],
+    
 }

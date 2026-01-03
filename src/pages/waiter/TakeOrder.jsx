@@ -230,111 +230,139 @@ export default function TakeOrder() {
      UI
   ---------------------------------- */
   return (
-    <div className="h-[calc(100vh-80px)] flex flex-col md:flex-row gap-6">
-      {/* MENU */}
-      <div className="flex-1 bg-white rounded-xl border flex flex-col">
-        <div className="p-4 border-b flex gap-4">
-          <button onClick={() => navigate('/waiter')}>
-            <ArrowLeft />
-          </button>
-          <input
-            className="flex-1 border rounded-lg px-4 py-2"
-            placeholder="Search menu..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-          />
-        </div>
+  <div className="h-[calc(100vh-80px)] flex flex-col md:flex-row gap-6">
+    {/* MENU */}
+    <div className="flex-1 bg-white rounded-xl border border-brand-orange/20 flex flex-col">
+      <div className="p-4 border-b border-brand-orange/20 flex gap-4">
+        <button
+          onClick={() => navigate('/waiter')}
+          className="text-brand-orange hover:text-brand-orangeDark"
+        >
+          <ArrowLeft />
+        </button>
 
-        <div className="p-4 flex gap-2 overflow-x-auto">
-          {categories.map(c => (
-            <button
-              key={c}
-              onClick={() => setCategoryFilter(c)}
-              className={`px-4 py-1 rounded-full ${
-                categoryFilter === c ? 'bg-indigo-600 text-white' : 'bg-gray-100'
-              }`}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex-1 p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto">
-          {filteredMenu.map(item => (
-            <div key={item.id} className="border p-4 rounded-lg flex justify-between">
-              <div>
-                <div className="font-bold">{item.name}</div>
-                <div className="text-sm text-gray-500">{item.category}</div>
-                <div className="font-semibold">₹{item.price}</div>
-              </div>
-              <button onClick={() => addToCart(item)}>
-                <Plus />
-              </button>
-            </div>
-          ))}
-        </div>
+        <input
+          className="flex-1 border border-gray-300 rounded-lg px-4 py-2
+            focus:outline-none focus:border-brand-orange
+            focus:ring-2 focus:ring-brand-orange"
+          placeholder="Search menu..."
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+        />
       </div>
 
-      {/* ORDER */}
-      <div className="w-full md:w-96 bg-white rounded-xl border flex flex-col">
-        <div className="p-4 bg-indigo-600 text-white font-bold">
-          Table {table.number}
-        </div>
-
-        <div className="flex-1 p-4 space-y-3 overflow-y-auto">
-          {mergedItems.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-gray-400">
-              <ChefHat size={48} />
-              <p>No items</p>
-            </div>
-          ) : (
-            mergedItems.map(i => (
-              <div
-                key={i.id}
-                className={`p-3 rounded-lg flex justify-between ${
-                  i.source === 'existing'
-                    ? 'bg-yellow-50 border'
-                    : 'bg-gray-50'
-                }`}
-              >
-                <div>
-                  <div className="font-medium">{i.name}</div>
-                  <div className="text-xs">₹{i.price} × {i.qty}</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() =>
-                      i.source === 'new'
-                        ? removeFromCart(i.id)
-                        : removeExistingItem(i.id)
-                    }
-                  >
-                    <Minus size={14} />
-                  </button>
-                  <span>{i.qty}</span>
-                  <button onClick={() => addToCart(i)}>
-                    <Plus size={14} />
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className="p-4 border-t">
-          <div className="flex justify-between font-bold mb-4">
-            <span>Total</span>
-            <span>₹{totalAmount}</span>
-          </div>
+      {/* Categories */}
+      <div className="p-4 flex gap-2 overflow-x-auto">
+        {categories.map(c => (
           <button
-            onClick={placeOrder}
-            disabled={submitting || Object.keys(cart).length === 0}
-            className="w-full bg-indigo-600 text-white py-3 rounded-xl"
+            key={c}
+            onClick={() => setCategoryFilter(c)}
+            className={`px-4 py-1 rounded-full transition-colors ${
+              categoryFilter === c
+                ? 'bg-brand-orange text-white shadow'
+                : 'bg-gray-100 text-gray-700 hover:bg-brand-orange/10'
+            }`}
           >
-            {submitting ? 'Updating...' : 'Place Order'}
+            {c}
           </button>
-        </div>
+        ))}
+      </div>
+
+      {/* Menu Grid */}
+      <div className="flex-1 p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto">
+        {filteredMenu.map(item => (
+          <div
+            key={item.id}
+            className="border border-gray-200 p-4 rounded-lg flex justify-between hover:border-brand-orange/40 transition-colors"
+          >
+            <div>
+              <div className="font-bold text-gray-800">{item.name}</div>
+              <div className="text-sm text-gray-500">{item.category}</div>
+              <div className="font-semibold text-brand-orange">₹{item.price}</div>
+            </div>
+            <button
+              onClick={() => addToCart(item)}
+              className="text-brand-orange hover:text-brand-orangeDark"
+            >
+              <Plus />
+            </button>
+          </div>
+        ))}
       </div>
     </div>
-  );
+
+    {/* ORDER */}
+    <div className="w-full md:w-96 bg-white rounded-xl border border-brand-orange/20 flex flex-col">
+      <div className="p-4 bg-brand-orange text-white font-bold rounded-t-xl">
+        Table {table.number}
+      </div>
+
+      <div className="flex-1 p-4 space-y-3 overflow-y-auto">
+        {mergedItems.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center text-gray-400">
+            <ChefHat size={48} />
+            <p>No items</p>
+          </div>
+        ) : (
+          mergedItems.map(i => (
+            <div
+              key={i.id}
+              className={`p-3 rounded-lg flex justify-between border ${
+                i.source === 'existing'
+                  ? 'bg-brand-orange/10 border-brand-orange/30'
+                  : 'bg-gray-50 border-gray-200'
+              }`}
+            >
+              <div>
+                <div className="font-medium text-gray-800">{i.name}</div>
+                <div className="text-xs text-gray-600">
+                  ₹{i.price} × {i.qty}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() =>
+                    i.source === 'new'
+                      ? removeFromCart(i.id)
+                      : removeExistingItem(i.id)
+                  }
+                  className="text-gray-600 hover:text-brand-orange"
+                >
+                  <Minus size={14} />
+                </button>
+
+                <span className="font-medium">{i.qty}</span>
+
+                <button
+                  onClick={() => addToCart(i)}
+                  className="text-brand-orange hover:text-brand-orangeDark"
+                >
+                  <Plus size={14} />
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="p-4 border-t border-brand-orange/20">
+        <div className="flex justify-between font-bold mb-4">
+          <span>Total</span>
+          <span className="text-brand-orange">₹{totalAmount}</span>
+        </div>
+        <button
+          onClick={placeOrder}
+          disabled={submitting || Object.keys(cart).length === 0}
+          className="w-full bg-brand-orange hover:bg-brand-orangeDark
+            text-white py-3 rounded-xl
+            transition-colors disabled:opacity-50"
+        >
+          {submitting ? 'Updating...' : 'Place Order'}
+        </button>
+      </div>
+    </div>
+  </div>
+);
 }
