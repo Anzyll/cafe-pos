@@ -1,4 +1,4 @@
-import SeedButton from '../../components/SeedButton';
+// import SeedButton from '../../components/SeedButton';
 import MenuManagement from './MenuManagement';
 import OrderAnalytics from './OrderAnalytics';
 import UserManagement from './UserManagement';
@@ -22,10 +22,10 @@ export default function AdminDashboard() {
                     </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-lg shadow">
+                {/* <div className="bg-white p-6 rounded-lg shadow">
                     <h3 className="text-lg font-bold mb-4">System Utilities</h3>
                     <SeedButton />
-                </div>
+                </div> */}
             </div>
         </div>
     );

@@ -1,5 +1,14 @@
 import { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, orderBy, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import {
+    collection,
+    query,
+    onSnapshot,
+    orderBy,
+    where,
+    doc,
+    updateDoc,
+    serverTimestamp
+} from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { formatBillToText, shareBillOnWhatsApp } from '../../lib/whatsapp';
 import { Users, Receipt, Smartphone, CheckCircle, Coffee } from 'lucide-react';
@@ -11,19 +20,24 @@ export default function CashierDashboard() {
     const [activeOrder, setActiveOrder] = useState(null);
     const [customerPhone, setCustomerPhone] = useState('');
     const [loading, setLoading] = useState(true);
-    const [phoneError, setPhoneError] = useState('');
 
-
+    /* ========================
+       REAL-TIME LISTENERS
+    ========================= */
     useEffect(() => {
-        // Real-time Tables
+        // Tables
         const qTables = query(collection(db, 'tables'), orderBy('number'));
-        const unsubTables = onSnapshot(qTables, (snap) => {
+        const unsubTables = onSnapshot(qTables, snap => {
             setTables(snap.docs.map(d => ({ id: d.id, ...d.data() })));
         });
 
-        // Real-time Active Orders (pending)
-        const qOrders = query(collection(db, 'orders'), where('status', '==', 'pending'));
-        const unsubOrders = onSnapshot(qOrders, (snap) => {
+        // Active orders (pending + preparing)
+        const qOrders = query(
+            collection(db, 'orders'),
+            where('status', 'in', ['pending', 'preparing'])
+        );
+
+        const unsubOrders = onSnapshot(qOrders, snap => {
             setOrders(snap.docs.map(d => ({ id: d.id, ...d.data() })));
             setLoading(false);
         });
@@ -34,220 +48,280 @@ export default function CashierDashboard() {
         };
     }, []);
 
+    /* ========================
+       SELECTED TABLE → ORDER
+    ========================= */
     useEffect(() => {
-        if (selectedTable) {
-            // Find active order for this table
-            const order = orders.find(o => o.tableId === selectedTable.id);
-            setActiveOrder(order || null);
-        } else {
+        if (!selectedTable) {
             setActiveOrder(null);
+            return;
         }
+
+        const order = orders.find(o => o.tableId === selectedTable.id);
+        setActiveOrder(order || null);
     }, [selectedTable, orders]);
 
-
+    /* ========================
+       HANDLERS
+    ========================= */
     const handleTableClick = (table) => {
         setSelectedTable(table);
-        setCustomerPhone(''); // Reset phone input
+        setCustomerPhone('');
     };
 
-  const handleCheckout = async () => {
-    if (!activeOrder) return;
-    if (!confirm(`Mark Order #${activeOrder.id.slice(0, 6)} as PAID?`)) return;
+    const handleCheckout = async () => {
+        if (!selectedTable || !activeOrder) return;
 
-    try {
-        // Optional: Prompt for phone number if not already entered
-        if (!customerPhone) {
-            const phone = prompt("Enter customer's WhatsApp number (with country code):");
-            if (!phone) {
-                alert("Phone number is required for checkout");
-                return;
-            }
-            const cleanPhone = phone.replace(/\D/g, '');
-            if (cleanPhone.length < 10) {
-                alert("Invalid phone number");
-                return;
-            }
-            setCustomerPhone(cleanPhone);
-            
-            // Auto-share bill on WhatsApp
-            const text = formatBillToText(activeOrder, selectedTable.number);
-            shareBillOnWhatsApp(cleanPhone, text);
-        } else {
-            // Auto-share with existing phone number
-            const text = formatBillToText(activeOrder, selectedTable.number);
-            shareBillOnWhatsApp(customerPhone, text);
+        if (selectedTable.status !== 'occupied') {
+            alert('This table is not occupied.');
+            return;
         }
 
-        // 1. Update Order Status
-        await updateDoc(doc(db, 'orders', activeOrder.id), {
-            status: 'paid',
-            paidAt: serverTimestamp(),
-            ...(customerPhone && { customerPhone: customerPhone.replace(/\D/g, '') }),
+        if (!confirm(`Mark Table ${selectedTable.number} as PAID?`)) return;
+
+        const cleanPhone = customerPhone.replace(/\D/g, '');
+        if (cleanPhone.length < 10) {
+            alert('Valid WhatsApp number required');
+            return;
+        }
+
+        try {
+            // 1️⃣ Send WhatsApp bill
+            const text = formatBillToText(activeOrder, selectedTable.number);
+            shareBillOnWhatsApp(cleanPhone, text);
+
+            // 2️⃣ Mark order as paid
+            await updateDoc(doc(db, 'orders', activeOrder.id), {
+                status: 'paid',
+                paidAt: serverTimestamp(),
+                customerPhone: cleanPhone,
+                whatsappSent: true,
+                whatsappSentAt: serverTimestamp()
+            });
+
+            // 3️⃣ Free the table
+            await updateDoc(doc(db, 'tables', selectedTable.id), {
+                status: 'available'
+            });
+
+            alert('Payment successful. Table freed.');
+            setSelectedTable(null);
+            setCustomerPhone('');
+        } catch (err) {
+            console.error('Checkout error', err);
+            alert('Checkout failed');
+        }
+    };
+
+    const handleShareWhatsApp = () => {
+        if (!activeOrder || !selectedTable) return;
+
+        const cleanPhone = customerPhone.replace(/\D/g, '');
+        if (cleanPhone.length < 10) {
+            alert('Invalid phone number');
+            return;
+        }
+
+        const text = formatBillToText(activeOrder, selectedTable.number);
+        shareBillOnWhatsApp(cleanPhone, text);
+
+        updateDoc(doc(db, 'orders', activeOrder.id), {
+            customerPhone: cleanPhone,
             whatsappSent: true,
             whatsappSentAt: serverTimestamp()
-        });
+        }).catch(console.error);
+    };
 
-        // 2. Free the Table
-        await updateDoc(doc(db, 'tables', selectedTable.id), {
-            status: 'free'
-        });
+    /* ========================
+       UI
+    ========================= */
+return (
+  <div className="relative min-h-[calc(100vh-100px)] flex flex-col lg:flex-row gap-4 lg:gap-6">
 
-        alert('Checkout Successful! Bill shared on WhatsApp.');
-        setSelectedTable(null);
-        setCustomerPhone('');
-    } catch (error) {
-        console.error("Checkout failed", error);
-        alert("Checkout failed: " + error.message);
-    }
-};
+    {/* LEFT: TABLES */}
+    <div
+      className="
+        flex-1 bg-white rounded-xl shadow-sm border border-brand-orange/20
+        p-4 md:p-6
+        overflow-y-auto
+        pb-36 lg:pb-6
+      "
+    >
+      <h2 className="text-lg md:text-xl font-bold mb-4 md:mb-6 text-gray-800">
+        Tables Overview
+      </h2>
 
- const handleShareWhatsApp = () => {
-    if (!activeOrder || !selectedTable) return;
+      {loading ? (
+        <p>Loading...</p>
+      ) : (
+        <div
+          className="
+            grid
+            grid-cols-1
+            sm:grid-cols-2
+            md:grid-cols-3
+            lg:grid-cols-4
+            gap-3 md:gap-4
+          "
+        >
+          {tables.map(table => {
+            const isOccupied = table.status === 'occupied';
+            const previewOrder = orders.find(o => o.tableId === table.id);
 
-    const cleanPhone = customerPhone.replace(/\D/g, '');
-    if (cleanPhone.length < 10) {
-        alert("Invalid phone number");
-        return;
-    }
+            return (
+              <button
+                key={table.id}
+                onClick={() => handleTableClick(table)}
+                className={`
+                  p-4 rounded-lg border-2
+                  flex flex-col items-center gap-2
+                  transition-all
+                  ${selectedTable?.id === table.id
+                    ? 'ring-2 ring-brand-orange ring-offset-2'
+                    : ''
+                  }
+                  ${isOccupied
+                    ? 'bg-brand-orange/10 border-brand-orange/40'
+                    : 'bg-green-50 border-green-300'
+                  }
+                  lg:hover:scale-105
+                `}
+              >
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    isOccupied
+                      ? 'bg-brand-orange text-white'
+                      : 'bg-green-200 text-green-700'
+                  }`}
+                >
+                  <Users size={20} />
+                </div>
 
-    const text = formatBillToText(activeOrder, selectedTable.number);
+                <span className="font-semibold text-gray-700">
+                  Table {table.number}
+                </span>
 
-    // 🔴 OPEN WHATSAPP FIRST
-    shareBillOnWhatsApp(cleanPhone, text);
+                <span
+                  className={`text-[10px] md:text-xs font-semibold uppercase ${
+                    isOccupied ? 'text-brand-orange' : 'text-green-600'
+                  }`}
+                >
+                  {table.status}
+                </span>
 
-    // 🔵 THEN do async work (optional)
-    updateDoc(doc(db, 'orders', activeOrder.id), {
-        customerPhone: cleanPhone,
-        whatsappSent: true,
-        whatsappSentAt: serverTimestamp()
-    }).catch(console.error);
-};
-
-
-    return (
-        <div className="h-[calc(100vh-100px)] flex gap-6">
-            {/* Left: Tables Grid */}
-            <div className="flex-1 bg-white rounded-xl shadow-sm border p-6 overflow-y-auto">
-                <h2 className="text-xl font-bold mb-6 text-gray-800">Tables Overview</h2>
-
-                {loading ? <p>Loading...</p> : (
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {tables.map(table => (
-                            <button
-                                key={table.id}
-                                onClick={() => handleTableClick(table)}
-                                className={`p-4 rounded-lg border-2 flex flex-col items-center gap-2 transition-all ${selectedTable?.id === table.id
-                                        ? 'ring-2 ring-indigo-500 ring-offset-2 scale-105 shadow-md'
-                                        : 'hover:border-gray-400'
-                                    } ${table.status === 'occupied'
-                                        ? 'bg-red-50 border-red-200'
-                                        : 'bg-green-50 border-green-200'
-                                    }`}
-                            >
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${table.status === 'occupied' ? 'bg-red-200 text-red-700' : 'bg-green-200 text-green-700'
-                                    }`}>
-                                    <Users size={20} />
-                                </div>
-                                <span className="font-bold text-gray-700">Table {table.number}</span>
-                                <span className={`text-xs font-semibold uppercase ${table.status === 'occupied' ? 'text-red-500' : 'text-green-500'
-                                    }`}>
-                                    {table.status}
-                                </span>
-                                {/* Show Order total preview if occupied */}
-                                {table.status === 'occupied' && orders.find(o => o.tableId === table.id) && (
-                                    <span className="text-xs bg-white px-2 py-0.5 rounded border shadow-sm">
-                                        ₹{orders.find(o => o.tableId === table.id)?.totalAmount}
-                                    </span>
-                                )}
-                            </button>
-                        ))}
-                    </div>
+                {isOccupied && previewOrder && (
+                  <span className="text-xs bg-white px-2 py-0.5 rounded border border-brand-orange/30 shadow-sm">
+                    ₹{previewOrder.totalAmount}
+                  </span>
                 )}
-            </div>
-
-            {/* Right: Checkout Panel */}
-            <div className="w-96 bg-white rounded-xl shadow-lg border flex flex-col">
-                <div className="p-6 border-b bg-gray-50 rounded-t-xl">
-                    <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2">
-                        <Receipt className="text-indigo-600" />
-                        Checkout / Billing
-                    </h3>
-                </div>
-
-                <div className="flex-1 p-6 overflow-y-auto">
-                    {!selectedTable ? (
-                        <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-2">
-                            <Coffee size={40} className="mb-2 opacity-20" />
-                            <p>Select a table to view details</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-6">
-                            <div className="flex justify-between items-center pb-4 border-b">
-                                <span className="text-lg font-bold text-gray-800">Table {selectedTable.number}</span>
-                                <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${selectedTable.status === 'occupied' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
-                                    }`}>
-                                    {selectedTable.status}
-                                </span>
-                            </div>
-
-                            {activeOrder ? (
-                                <>
-                                    <div className="space-y-3">
-                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Order Items</p>
-                                        {activeOrder.items.map((item, idx) => (
-                                            <div key={idx} className="flex justify-between text-sm">
-                                                <span>{item.qty}x {item.name}</span>
-                                                <span className="font-medium">₹{item.price * item.qty}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    <div className="pt-4 border-t flex justify-between items-center text-xl font-bold text-indigo-900">
-                                        <span>Total</span>
-                                        <span>₹{activeOrder.totalAmount}</span>
-                                    </div>
-
-                                    <div className="pt-6 space-y-4">
-                                        <div>
-                                            <label className="block text-xs font-medium text-gray-500 mb-1">WhatsApp Share (Phone w/ Code)</label>
-                                            <div className="flex gap-2">
-                                                <input
-                                                    type="tel"
-                                                    placeholder="919876543210"
-                                                    value={customerPhone}
-                                                    onChange={e => setCustomerPhone(e.target.value)}
-                                                    className="flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                                                />
-                                                <button
-                                                    onClick={handleShareWhatsApp}
-                                                    className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-                                                    title="Share on WhatsApp"
-                                                >
-                                                    <Smartphone size={20} />
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <button
-                                            onClick={handleCheckout}
-                                            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95"
-                                        >
-                                            <CheckCircle size={20} />
-                                            Mark Paid & Free Table
-                                        </button>
-                                    </div>
-                                </>
-                            ) : (
-                                <div className="text-center text-gray-500 py-8">
-                                    {selectedTable.status === 'occupied'
-                                        ? 'No active order found (Error?)'
-                                        : 'Table is Free. No active orders.'}
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-            </div>
+              </button>
+            );
+          })}
         </div>
-    );
+      )}
+    </div>
+
+    {/* RIGHT: BILLING (STICKY ON MOBILE) */}
+    <div
+      className="
+        fixed bottom-0 left-0 right-0 z-30
+        lg:static lg:w-96
+        bg-white
+        rounded-t-xl lg:rounded-xl
+        shadow-2xl lg:shadow-lg
+        border border-brand-orange/20
+        flex flex-col
+        max-h-[70vh] lg:max-h-full
+      "
+    >
+      {/* Mobile drag handle */}
+      <div className="lg:hidden flex justify-center py-2">
+        <div className="w-10 h-1.5 bg-gray-300 rounded-full" />
+      </div>
+
+      {/* Header */}
+      <div className="p-4 md:p-6 border-b border-brand-orange/20 bg-brand-orange/5">
+        <h3 className="font-bold text-base md:text-lg text-gray-800 flex items-center gap-2">
+          <Receipt className="text-brand-orange" />
+          Checkout / Billing
+        </h3>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 p-4 md:p-6 overflow-y-auto">
+        {!selectedTable ? (
+          <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-2">
+            <Coffee size={36} className="opacity-20" />
+            <p className="text-sm">Select a table</p>
+          </div>
+        ) : activeOrder ? (
+          <div className="space-y-5">
+            <div className="flex justify-between items-center pb-3 border-b">
+              <span className="text-base md:text-lg font-bold">
+                Table {selectedTable.number}
+              </span>
+              <span className="px-3 py-1 rounded-full text-xs font-bold uppercase bg-brand-orange/15 text-brand-orange">
+                occupied
+              </span>
+            </div>
+
+            <div className="space-y-2 text-sm">
+              {activeOrder.items.map((item, idx) => (
+                <div key={idx} className="flex justify-between">
+                  <span>{item.qty}× {item.name}</span>
+                  <span>₹{item.price * item.qty}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-3 border-t flex justify-between text-lg font-bold">
+              <span>Total</span>
+              <span className="text-brand-orange">
+                ₹{activeOrder.totalAmount}
+              </span>
+            </div>
+
+            <div className="space-y-3 pt-4">
+              <div className="flex gap-2">
+                <input
+                  type="tel"
+                  placeholder="WhatsApp number"
+                  value={customerPhone}
+                  onChange={e => setCustomerPhone(e.target.value)}
+                  className="
+                    flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm
+                    focus:outline-none focus:border-brand-orange
+                    focus:ring-2 focus:ring-brand-orange
+                  "
+                />
+                <button
+                  onClick={handleShareWhatsApp}
+                  className="p-2 bg-green-500 hover:bg-green-600 text-white rounded-lg"
+                >
+                  <Smartphone size={18} />
+                </button>
+              </div>
+
+              <button
+                onClick={handleCheckout}
+                className="
+                  w-full py-3 bg-brand-orange hover:bg-brand-orangeDark
+                  text-white font-bold rounded-lg
+                  flex items-center justify-center gap-2
+                "
+              >
+                <CheckCircle size={18} />
+                Mark Paid & Free Table
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-center text-gray-500 text-sm">
+            No active order for this table
+          </p>
+        )}
+      </div>
+    </div>
+  </div>
+);
 }

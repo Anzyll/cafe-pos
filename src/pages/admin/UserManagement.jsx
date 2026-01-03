@@ -30,70 +30,111 @@ export default function UserManagement() {
         }
     };
 
-    return (
-        <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-xl font-bold flex items-center gap-2 mb-4">
-                <Users className="text-blue-600" />
-                User & Staff Management
-            </h3>
+   return (
+  <div className="bg-white rounded-lg shadow p-6 border border-brand-orange/20">
+    <h3 className="text-xl font-bold flex items-center gap-2 mb-4 text-gray-800">
+      <Users className="text-brand-orange" />
+      User & Staff Management
+    </h3>
 
-            <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                    <thead className="text-xs text-gray-700 uppercase bg-gray-50">
-                        <tr>
-                            <th className="px-4 py-3">Name</th>
-                            <th className="px-4 py-3">Email</th>
-                            <th className="px-4 py-3">Role</th>
-                            <th className="px-4 py-3">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {loading ? (
-                            <tr><td colSpan="4" className="text-center py-4">Loading users...</td></tr>
-                        ) : users.map(user => (
-                            <tr key={user.id} className="border-b hover:bg-gray-50">
-                                <td className="px-4 py-3 font-medium text-gray-900">{user.name || 'N/A'}</td>
-                                <td className="px-4 py-3 text-gray-500">{user.email}</td>
-                                <td className="px-4 py-3">
-                                    {editingId === user.id ? (
-                                        <select
-                                            value={newRole || user.role}
-                                            onChange={(e) => setNewRole(e.target.value)}
-                                            className="border rounded px-2 py-1"
-                                        >
-                                            <option value="admin">Admin</option>
-                                            <option value="waiter">Waiter</option>
-                                            <option value="cashier">Cashier</option>
-                                        </select>
-                                    ) : (
-                                        <span className={`px-2 py-1 rounded-full text-xs font-semibold uppercase ${user.role === 'admin' ? 'bg-purple-100 text-purple-700' :
-                                                user.role === 'waiter' ? 'bg-orange-100 text-orange-700' :
-                                                    'bg-green-100 text-green-700'
-                                            }`}>
-                                            {user.role}
-                                        </span>
-                                    )}
-                                </td>
-                                <td className="px-4 py-3">
-                                    {editingId === user.id ? (
-                                        <div className="flex gap-2">
-                                            <button onClick={() => handleRoleUpdate(user.id)} className="text-green-600 hover:text-green-800"><Check size={18} /></button>
-                                            <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-600">Cancel</button>
-                                        </div>
-                                    ) : (
-                                        <button
-                                            onClick={() => { setEditingId(user.id); setNewRole(user.role); }}
-                                            className="text-blue-600 hover:underline"
-                                        >
-                                            Edit Role
-                                        </button>
-                                    )}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    );
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm text-left">
+        <thead className="text-xs text-gray-700 uppercase bg-brand-orange/5">
+          <tr>
+            <th className="px-4 py-3">Name</th>
+            <th className="px-4 py-3">Email</th>
+            <th className="px-4 py-3">Role</th>
+            <th className="px-4 py-3">Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {loading ? (
+            <tr>
+              <td colSpan="4" className="text-center py-4 text-gray-500">
+                Loading users...
+              </td>
+            </tr>
+          ) : users.map(user => (
+            <tr
+              key={user.id}
+              className="border-b hover:bg-brand-orange/5 transition-colors"
+            >
+              {/* Name */}
+              <td className="px-4 py-3 font-medium text-gray-900">
+                {user.name || 'N/A'}
+              </td>
+
+              {/* Email */}
+              <td className="px-4 py-3 text-gray-500">
+                {user.email}
+              </td>
+
+              {/* Role */}
+              <td className="px-4 py-3">
+                {editingId === user.id ? (
+                  <select
+                    value={newRole || user.role}
+                    onChange={(e) => setNewRole(e.target.value)}
+                    className="border border-gray-300 rounded px-2 py-1
+                      focus:outline-none focus:border-brand-orange
+                      focus:ring-2 focus:ring-brand-orange"
+                  >
+                    <option value="admin">Admin</option>
+                    <option value="waiter">Waiter</option>
+                    <option value="cashier">Cashier</option>
+                  </select>
+                ) : (
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-semibold uppercase
+                      ${
+                        user.role === 'admin'
+                          ? 'bg-purple-100 text-purple-700'
+                          : user.role === 'waiter'
+                          ? 'bg-orange-100 text-orange-700'
+                          : 'bg-green-100 text-green-700'
+                      }`}
+                  >
+                    {user.role}
+                  </span>
+                )}
+              </td>
+
+              {/* Actions */}
+              <td className="px-4 py-3">
+                {editingId === user.id ? (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleRoleUpdate(user.id)}
+                      className="text-green-600 hover:text-green-800"
+                      title="Save"
+                    >
+                      <Check size={18} />
+                    </button>
+                    <button
+                      onClick={() => setEditingId(null)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setEditingId(user.id);
+                      setNewRole(user.role);
+                    }}
+                    className="text-brand-orange hover:text-brand-orangeDark font-medium"
+                  >
+                    Edit Role
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+);
 }
