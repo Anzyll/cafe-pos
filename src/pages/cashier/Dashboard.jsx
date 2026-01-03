@@ -135,19 +135,35 @@ export default function CashierDashboard() {
     /* ========================
        UI
     ========================= */
-    return (
-  <div className="h-[calc(100vh-100px)] flex gap-6">
+return (
+  <div className="relative min-h-[calc(100vh-100px)] flex flex-col lg:flex-row gap-4 lg:gap-6">
 
     {/* LEFT: TABLES */}
-    <div className="flex-1 bg-white rounded-xl shadow-sm border border-brand-orange/20 p-6 overflow-y-auto">
-      <h2 className="text-xl font-bold mb-6 text-gray-800">
+    <div
+      className="
+        flex-1 bg-white rounded-xl shadow-sm border border-brand-orange/20
+        p-4 md:p-6
+        overflow-y-auto
+        pb-36 lg:pb-6
+      "
+    >
+      <h2 className="text-lg md:text-xl font-bold mb-4 md:mb-6 text-gray-800">
         Tables Overview
       </h2>
 
       {loading ? (
         <p>Loading...</p>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div
+          className="
+            grid
+            grid-cols-1
+            sm:grid-cols-2
+            md:grid-cols-3
+            lg:grid-cols-4
+            gap-3 md:gap-4
+          "
+        >
           {tables.map(table => {
             const isOccupied = table.status === 'occupied';
             const previewOrder = orders.find(o => o.tableId === table.id);
@@ -156,15 +172,20 @@ export default function CashierDashboard() {
               <button
                 key={table.id}
                 onClick={() => handleTableClick(table)}
-                className={`p-4 rounded-lg border-2 flex flex-col items-center gap-2 transition-all ${
-                  selectedTable?.id === table.id
-                    ? 'ring-2 ring-brand-orange ring-offset-2 scale-105 shadow-md'
+                className={`
+                  p-4 rounded-lg border-2
+                  flex flex-col items-center gap-2
+                  transition-all
+                  ${selectedTable?.id === table.id
+                    ? 'ring-2 ring-brand-orange ring-offset-2'
                     : ''
-                } ${
-                  isOccupied
+                  }
+                  ${isOccupied
                     ? 'bg-brand-orange/10 border-brand-orange/40'
                     : 'bg-green-50 border-green-300'
-                }`}
+                  }
+                  lg:hover:scale-105
+                `}
               >
                 <div
                   className={`w-10 h-10 rounded-full flex items-center justify-center ${
@@ -176,12 +197,12 @@ export default function CashierDashboard() {
                   <Users size={20} />
                 </div>
 
-                <span className="font-bold text-gray-700">
+                <span className="font-semibold text-gray-700">
                   Table {table.number}
                 </span>
 
                 <span
-                  className={`text-xs font-semibold uppercase ${
+                  className={`text-[10px] md:text-xs font-semibold uppercase ${
                     isOccupied ? 'text-brand-orange' : 'text-green-600'
                   }`}
                 >
@@ -200,25 +221,43 @@ export default function CashierDashboard() {
       )}
     </div>
 
-    {/* RIGHT: BILLING */}
-    <div className="w-96 bg-white rounded-xl shadow-lg border border-brand-orange/20 flex flex-col">
-      <div className="p-6 border-b border-brand-orange/20 bg-brand-orange/5 rounded-t-xl">
-        <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2">
+    {/* RIGHT: BILLING (STICKY ON MOBILE) */}
+    <div
+      className="
+        fixed bottom-0 left-0 right-0 z-30
+        lg:static lg:w-96
+        bg-white
+        rounded-t-xl lg:rounded-xl
+        shadow-2xl lg:shadow-lg
+        border border-brand-orange/20
+        flex flex-col
+        max-h-[70vh] lg:max-h-full
+      "
+    >
+      {/* Mobile drag handle */}
+      <div className="lg:hidden flex justify-center py-2">
+        <div className="w-10 h-1.5 bg-gray-300 rounded-full" />
+      </div>
+
+      {/* Header */}
+      <div className="p-4 md:p-6 border-b border-brand-orange/20 bg-brand-orange/5">
+        <h3 className="font-bold text-base md:text-lg text-gray-800 flex items-center gap-2">
           <Receipt className="text-brand-orange" />
           Checkout / Billing
         </h3>
       </div>
 
-      <div className="flex-1 p-6 overflow-y-auto">
+      {/* Content */}
+      <div className="flex-1 p-4 md:p-6 overflow-y-auto">
         {!selectedTable ? (
           <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-2">
-            <Coffee size={40} className="opacity-20" />
-            <p>Select a table</p>
+            <Coffee size={36} className="opacity-20" />
+            <p className="text-sm">Select a table</p>
           </div>
         ) : activeOrder ? (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center pb-4 border-b">
-              <span className="text-lg font-bold">
+          <div className="space-y-5">
+            <div className="flex justify-between items-center pb-3 border-b">
+              <span className="text-base md:text-lg font-bold">
                 Table {selectedTable.number}
               </span>
               <span className="px-3 py-1 rounded-full text-xs font-bold uppercase bg-brand-orange/15 text-brand-orange">
@@ -226,54 +265,58 @@ export default function CashierDashboard() {
               </span>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 text-sm">
               {activeOrder.items.map((item, idx) => (
-                <div key={idx} className="flex justify-between text-sm">
+                <div key={idx} className="flex justify-between">
                   <span>{item.qty}× {item.name}</span>
                   <span>₹{item.price * item.qty}</span>
                 </div>
               ))}
             </div>
 
-            <div className="pt-4 border-t flex justify-between text-xl font-bold">
+            <div className="pt-3 border-t flex justify-between text-lg font-bold">
               <span>Total</span>
               <span className="text-brand-orange">
                 ₹{activeOrder.totalAmount}
               </span>
             </div>
 
-            <div className="space-y-4 pt-6">
+            <div className="space-y-3 pt-4">
               <div className="flex gap-2">
                 <input
                   type="tel"
                   placeholder="WhatsApp number"
                   value={customerPhone}
                   onChange={e => setCustomerPhone(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm
+                  className="
+                    flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm
                     focus:outline-none focus:border-brand-orange
-                    focus:ring-2 focus:ring-brand-orange"
+                    focus:ring-2 focus:ring-brand-orange
+                  "
                 />
                 <button
                   onClick={handleShareWhatsApp}
-                  className="p-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors"
+                  className="p-2 bg-green-500 hover:bg-green-600 text-white rounded-lg"
                 >
-                  <Smartphone size={20} />
+                  <Smartphone size={18} />
                 </button>
               </div>
 
               <button
                 onClick={handleCheckout}
-                className="w-full py-3 bg-brand-orange hover:bg-brand-orangeDark
+                className="
+                  w-full py-3 bg-brand-orange hover:bg-brand-orangeDark
                   text-white font-bold rounded-lg
-                  flex items-center justify-center gap-2 transition-colors"
+                  flex items-center justify-center gap-2
+                "
               >
-                <CheckCircle size={20} />
+                <CheckCircle size={18} />
                 Mark Paid & Free Table
               </button>
             </div>
           </div>
         ) : (
-          <p className="text-center text-gray-500">
+          <p className="text-center text-gray-500 text-sm">
             No active order for this table
           </p>
         )}
