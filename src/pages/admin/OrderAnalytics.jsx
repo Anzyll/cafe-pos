@@ -1,39 +1,61 @@
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, getDocs, where } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { BarChart3, Calendar, IndianRupee } from 'lucide-react';
 
 export default function OrderAnalytics() {
+    const today = new Date().toISOString().slice(0, 10);
+
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [filterDate, setFilterDate] = useState(new Date().toISOString().slice(0, 10)); // YYYY-MM-DD
-    const [stats, setStats] = useState({ totalSales: 0, orderCount: 0, avgValue: 0 });
+    const [fromDate, setFromDate] = useState(today);
+    const [toDate, setToDate] = useState(today);
+    const [expandedOrderId, setExpandedOrderId] = useState(null);
+
+    const [stats, setStats] = useState({
+        totalSales: 0,
+        orderCount: 0,
+        avgValue: 0
+    });
 
     useEffect(() => {
         fetchOrders();
-    }, [filterDate]);
+    }, [fromDate, toDate]);
 
     const fetchOrders = async () => {
         setLoading(true);
         try {
-            // Simple client-side filtering for MVP (since firestore querying by date needs timestamp conversion logic)
-            // Production: Use 'startAt' and 'endAt' query constraints
-            const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+            const q = query(
+                collection(db, 'orders'),
+                orderBy('createdAt', 'desc')
+            );
+
             const snap = await getDocs(q);
 
-            const allOrders = snap.docs.map(d => ({
-                id: d.id,
-                ...d.data(),
-                // Handle null createdAt for very new docs
-                date: d.data().createdAt?.toDate().toISOString().slice(0, 10) || 'Unknown'
-            }));
+            const allOrders = snap.docs.map(d => {
+                const data = d.data();
+                return {
+                    id: d.id,
+                    ...data,
+                    date: data.createdAt
+                        ? data.createdAt.toDate().toISOString().slice(0, 10)
+                        : null
+                };
+            });
 
-            const filtered = allOrders.filter(o => o.date === filterDate);
+            const filtered = allOrders.filter(o =>
+                o.date && o.date >= fromDate && o.date <= toDate
+            );
+
             setOrders(filtered);
 
-            // Calc Stats
-            const totalSales = filtered.reduce((sum, o) => sum + (o.status === 'paid' ? o.totalAmount : 0), 0);
-            const count = filtered.length;
+            const paidOrders = filtered.filter(o => o.status === 'paid');
+            const totalSales = paidOrders.reduce(
+                (sum, o) => sum + (o.totalAmount || 0),
+                0
+            );
+
+            const count = paidOrders.length;
 
             setStats({
                 totalSales,
@@ -41,147 +63,200 @@ export default function OrderAnalytics() {
                 avgValue: count ? Math.round(totalSales / count) : 0
             });
 
-        } catch (error) {
-            console.error("Error fetching analytics", error);
+        } catch (err) {
+            console.error('Analytics error', err);
         }
         setLoading(false);
     };
 
     return (
-  <div className="bg-white rounded-lg shadow p-6 mt-8 border border-brand-orange/20">
-    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-      <h3 className="text-xl font-bold flex items-center gap-2 text-gray-800">
-        <BarChart3 className="text-brand-orange" />
-        Order Analytics
-      </h3>
+        <div className="bg-white rounded-lg shadow p-6 mt-8 border border-brand-orange/20">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <h3 className="text-xl font-bold flex items-center gap-2 text-gray-800">
+                    <BarChart3 className="text-brand-orange" />
+                    Order Analytics
+                </h3>
 
-      <div className="flex items-center gap-2 bg-brand-orange/5 border border-brand-orange/20 rounded-lg px-3 py-2">
-        <Calendar size={18} className="text-gray-500" />
-        <span className="text-sm font-medium text-gray-700">Date:</span>
-        <input
-          type="date"
-          value={filterDate}
-          onChange={(e) => setFilterDate(e.target.value)}
-          className="bg-transparent border-none focus:outline-none focus:ring-0
-            text-sm font-semibold text-gray-800"
-        />
-      </div>
-    </div>
+                {/* Date Range */}
+                <div className="flex flex-wrap items-center gap-3 bg-brand-orange/5 border border-brand-orange/20 rounded-lg px-3 py-2">
+                    <Calendar size={18} className="text-gray-500" />
 
-    {/* Stats */}
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-      <div className="p-4 bg-brand-orange/10 border border-brand-orange/20 rounded-xl">
-        <h4 className="text-sm font-medium text-brand-orange mb-1">
-          Total Sales (Paid)
-        </h4>
-        <div className="text-3xl font-bold text-gray-900 flex items-center">
-          <IndianRupee size={24} />
-          {stats.totalSales}
-        </div>
-      </div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">From</span>
+                        <input
+                            type="date"
+                            value={fromDate}
+                            onChange={(e) => setFromDate(e.target.value)}
+                            className="bg-transparent border-none focus:outline-none text-sm font-semibold"
+                        />
+                    </div>
 
-      <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl">
-        <h4 className="text-sm font-medium text-blue-600 mb-1">
-          Total Orders
-        </h4>
-        <div className="text-3xl font-bold text-blue-900">
-          {stats.orderCount}
-        </div>
-      </div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">To</span>
+                        <input
+                            type="date"
+                            value={toDate}
+                            onChange={(e) => setToDate(e.target.value)}
+                            className="bg-transparent border-none focus:outline-none text-sm font-semibold"
+                        />
+                    </div>
+                </div>
+            </div>
 
-      <div className="p-4 bg-purple-50 border border-purple-100 rounded-xl">
-        <h4 className="text-sm font-medium text-purple-600 mb-1">
-          Avg. Order Value
-        </h4>
-        <div className="text-3xl font-bold text-purple-900">
-          ₹{stats.avgValue}
-        </div>
-      </div>
-    </div>
+            {/* Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className="p-4 bg-brand-orange/10 border border-brand-orange/20 rounded-xl">
+                    <h4 className="text-sm font-medium text-brand-orange mb-1">
+                        Total Sales (Paid)
+                    </h4>
+                    <div className="text-3xl font-bold text-gray-900 flex items-center gap-1">
+                        <IndianRupee size={22} />
+                        {stats.totalSales}
+                    </div>
+                </div>
 
-    {loading ? (
-      <p className="text-center py-8 text-gray-400">
-        Loading analytics...
-      </p>
-    ) : (
-      <div className="overflow-x-auto border border-brand-orange/20 rounded-lg">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-brand-orange/5">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">
-                Order ID
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">
-                Time
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">
-                Table
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">
-                Items
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">
-                Total
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">
-                Status
-              </th>
-            </tr>
-          </thead>
+                <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl">
+                    <h4 className="text-sm font-medium text-blue-600 mb-1">
+                        Paid Orders
+                    </h4>
+                    <div className="text-3xl font-bold text-blue-900">
+                        {stats.orderCount}
+                    </div>
+                </div>
 
-          <tbody className="bg-white divide-y divide-gray-200 text-sm">
-            {orders.map(order => (
-              <tr key={order.id} className="hover:bg-brand-orange/5 transition-colors">
-                <td className="px-4 py-3 font-mono text-gray-600">
-                  #{order.id.slice(0, 6)}
-                </td>
+                <div className="p-4 bg-purple-50 border border-purple-100 rounded-xl">
+                    <h4 className="text-sm font-medium text-purple-600 mb-1">
+                        Avg Order Value
+                    </h4>
+                    <div className="text-3xl font-bold text-purple-900">
+                        ₹{stats.avgValue}
+                    </div>
+                </div>
+            </div>
 
-                <td className="px-4 py-3 text-gray-500">
-                  {order.createdAt?.toDate().toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  }) || '--'}
-                </td>
+            {/* Table */}
+            {loading ? (
+                <p className="text-center py-8 text-gray-400">
+                    Loading analytics...
+                </p>
+            ) : (
+                <div className="overflow-x-auto border border-brand-orange/20 rounded-lg">
+                    <table className="min-w-full border-collapse">
+                        <thead className="bg-brand-orange/5">
+                            <tr>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase w-32">
+                                    Order ID
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase w-44">
+                                    Date & Time
+                                </th>
+                                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase w-20">
+                                    Table
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                                    Items
+                                </th>
+                                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase w-28">
+                                    Total
+                                </th>
+                                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase w-24">
+                                    Status
+                                </th>
+                            </tr>
+                        </thead>
 
-                <td className="px-4 py-3 font-medium">
-                  Table {order.tableNumber}
-                </td>
+                        <tbody className="text-sm">
+                            {orders.map(order => {
+                                const itemsText = order.items.map(
+                                    i => `${i.qty}x ${i.name}`
+                                );
 
-                <td className="px-4 py-3 text-gray-600 max-w-xs truncate">
-                  {order.items.map(i => `${i.qty}x ${i.name}`).join(', ')}
-                </td>
+                                const isExpanded = expandedOrderId === order.id;
+                                const visibleItems = isExpanded
+                                    ? itemsText
+                                    : itemsText.slice(0, 3);
 
-                <td className="px-4 py-3 font-bold text-gray-900">
-                  ₹{order.totalAmount}
-                </td>
+                                return (
+                                    <tr
+                                        key={order.id}
+                                        className="border-t hover:bg-brand-orange/5 transition-colors align-top"
+                                    >
+                                        <td className="px-4 py-3 font-mono text-gray-600">
+                                            #{order.id.slice(0, 6)}
+                                        </td>
 
-                {/* STATUS – unchanged semantics */}
-                <td className="px-4 py-3">
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-semibold uppercase
-                      ${
-                        order.status === 'paid'
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-yellow-100 text-yellow-700'
-                      }`}
-                  >
-                    {order.status}
-                  </span>
-                </td>
-              </tr>
-            ))}
+                                        <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
+                                            {order.createdAt
+                                                ? order.createdAt.toDate().toLocaleString([], {
+                                                      day: '2-digit',
+                                                      month: 'short',
+                                                      year: 'numeric',
+                                                      hour: '2-digit',
+                                                      minute: '2-digit'
+                                                  })
+                                                : '--'}
+                                        </td>
 
-            {orders.length === 0 && (
-              <tr>
-                <td colSpan="6" className="text-center py-6 text-gray-400">
-                  No orders found for this date.
-                </td>
-              </tr>
+                                        <td className="px-4 py-3 text-center font-medium">
+                                            {order.tableNumber}
+                                        </td>
+
+                                        <td className="px-4 py-3 text-gray-700 max-w-md">
+                                            <div className="space-y-1">
+                                                {visibleItems.map((text, idx) => (
+                                                    <div key={idx} className="whitespace-normal">
+                                                        {text}
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            {itemsText.length > 3 && (
+                                                <button
+                                                    onClick={() =>
+                                                        setExpandedOrderId(
+                                                            isExpanded ? null : order.id
+                                                        )
+                                                    }
+                                                    className="mt-1 text-xs font-semibold text-brand-orange hover:underline"
+                                                >
+                                                    {isExpanded
+                                                        ? 'Show less'
+                                                        : `+${itemsText.length - 3} more`}
+                                                </button>
+                                            )}
+                                        </td>
+
+                                        <td className="px-4 py-3 text-right font-bold text-gray-900">
+                                            ₹{order.totalAmount}
+                                        </td>
+
+                                        <td className="px-4 py-3 text-center">
+                                            <span
+                                                className={`px-2 py-1 rounded-full text-xs font-semibold uppercase ${
+                                                    order.status === 'paid'
+                                                        ? 'bg-green-100 text-green-700'
+                                                        : 'bg-yellow-100 text-yellow-700'
+                                                }`}
+                                            >
+                                                {order.status}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+
+                            {orders.length === 0 && (
+                                <tr>
+                                    <td colSpan="6" className="text-center py-6 text-gray-400">
+                                        No orders found for selected dates.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             )}
-          </tbody>
-        </table>
-      </div>
-    )}
-  </div>
-);
+        </div>
+    );
 }
