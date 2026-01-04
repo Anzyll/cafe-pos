@@ -8,6 +8,7 @@ import AdminDashboard from './pages/admin/Dashboard';
 import WaiterDashboard from './pages/waiter/Dashboard';
 import TakeOrder from './pages/waiter/TakeOrder';
 import CashierDashboard from './pages/cashier/Dashboard';
+import { ToastContainer } from 'react-toastify';
 
 function App() {
   return (
@@ -39,7 +40,22 @@ function App() {
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>
+         <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        pauseOnHover
+        draggable
+        theme="light"
+        toastStyle={{
+          borderLeft: "6px solid #EA6031",
+          fontWeight: 500
+        }}
+      />
     </AuthProvider>
+    
   );
 }
 

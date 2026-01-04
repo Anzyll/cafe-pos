@@ -10,6 +10,7 @@ import {
 import { db } from "../../lib/firebase";
 import { Edit2, Trash2, PlusCircle, Coffee, Utensils } from "lucide-react";
 import AddMenuModal from "./AddMenuModal";
+import { confirmToast, showError, showSuccess } from "../../lib/toast";
 
 export default function MenuManagement() {
   const [menuItems, setMenuItems] = useState([]);
@@ -27,11 +28,18 @@ export default function MenuManagement() {
     return () => unsubscribe();
   }, []);
 
-  const handleDelete = async (id) => {
-    if (confirm("Are you sure you want to delete this item?")) {
+ const handleDelete = (id) => {
+  confirmToast("Delete this menu item?", async () => {
+    try {
       await deleteDoc(doc(db, "menu", id));
+      showSuccess("Menu item deleted");
+    } catch (err) {
+      console.error(err);
+      showError("Failed to delete menu item");
     }
-  };
+  });
+};
+
 
   const toggleAvailability = async (item) => {
     await updateDoc(doc(db, "menu", item.id), {
