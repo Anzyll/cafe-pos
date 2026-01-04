@@ -1,25 +1,36 @@
 // lib/whatsapp.js
 export const formatBillToText = (order, tableNumber) => {
-    const cafeName = "The Cozy Cup Cafe";
-    const date = new Date().toLocaleDateString();
-    const time = new Date().toLocaleTimeString();
+  const cafeName = "The Cozy Cup Cafe";
+  const dateObj = new Date();
+  const date = dateObj.toLocaleDateString();
+  const time = dateObj.toLocaleTimeString();
 
-    let text = `*${cafeName}*\n`;
-    text += `📅 Date: ${date} ${time}\n`;
-    text += `📋 Order #${order.id.slice(0, 6)}\n`;
-    text += `🪑 Table: ${tableNumber}\n\n`;
-    
-    text += `*Items:*\n`;
-    order.items.forEach(item => {
-        text += `${item.qty}x ${item.name} - ₹${item.price * item.qty}\n`;
-    });
-    
-    text += `\n─────────────────\n`;
-    text += `*Total: ₹${order.totalAmount}*\n`;
-    text += `Thank you for visiting! 🍵\n`;
-    text += `Hope to see you again soon!`;
-    return text;
+  let text = `*${cafeName}*\n`;
+  text += `📅 Date: ${date} ${time}\n`;
+  text += `📋 Order #${order.id.slice(0, 6)}\n`;
+  text += `🪑 Table: ${tableNumber}\n\n`;
+
+  text += `*Items:*\n`;
+  order.items.forEach((item) => {
+    text += `${item.qty} × ${item.name} — ₹${item.price * item.qty}\n`;
+  });
+
+  text += `\n─────────────────\n`;
+  text += `Subtotal: ₹${order.totalAmount}\n`;
+
+  // ✅ Include discount only if applied
+  if (order.offerPercent > 0) {
+    text += `Discount (${order.offerPercent}%): -₹${order.discountAmount}\n`;
+  }
+
+  text += `*Total Payable: ₹${order.finalAmount ?? order.totalAmount}*\n\n`;
+
+  text += `Thank you for visiting! ☕\n`;
+  text += `Hope to see you again soon!`;
+
+  return text;
 };
+
 
 export const shareBillOnWhatsApp = (phone, text) => {
     // Clean phone number (remove +, spaces, etc.)
