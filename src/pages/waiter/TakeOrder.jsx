@@ -13,7 +13,8 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { db, auth } from '../../lib/firebase';
-import { Search, ShoppingCart, ArrowLeft, Plus, Minus, ChefHat } from 'lucide-react';
+import {  ArrowLeft, Plus, Minus, ChefHat } from 'lucide-react';
+import { showError, showSuccess } from '../../lib/toast';
 
 export default function TakeOrder() {
   const { tableId } = useParams();
@@ -37,7 +38,7 @@ export default function TakeOrder() {
         // Table
         const tableSnap = await getDoc(doc(db, 'tables', tableId));
         if (!tableSnap.exists()) {
-          alert('Table not found');
+          showError('Table not found');
           navigate('/waiter');
           return;
         }
@@ -204,11 +205,11 @@ export default function TakeOrder() {
       }
 
       setCart({});
-      alert('Order updated');
+      showSuccess("Order updated successfully");
       navigate('/waiter');
     } catch (err) {
       console.error(err);
-      alert('Failed to place order');
+      showError("Failed to place order. Please try again.");
     }
 
     setSubmitting(false);

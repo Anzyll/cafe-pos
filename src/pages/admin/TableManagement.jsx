@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, orderBy, addDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { LayoutGrid, Plus, Trash2 } from 'lucide-react';
+import { confirmToast, showError,showSuccess } from '../../lib/toast';
 
 export default function TableManagement() {
     const [tables, setTables] = useState([]);
@@ -24,21 +25,25 @@ export default function TableManagement() {
                 floor: newTable.floor,
                 status: 'free'
             });
+            showSuccess("Table added successfully");
             setNewTable({ number: '', floor: '1' });
         } catch (error) {
             console.error("Error adding table:", error);
-            alert("Error adding table");
+            showError("Error adding table");
         }
     };
+const handleDelete = (id) => {
+  confirmToast("Delete this table? This cannot be undone.", async () => {
+    try {
+      await deleteDoc(doc(db, "tables", id));
+      showSuccess("Table deleted");
+    } catch (error) {
+      console.error("Error deleting table:", error);
+      showError("Failed to delete table");
+    }
+  });
+};
 
-    const handleDelete = async (id) => {
-        if (!confirm("Are you sure? This cannot be undone.")) return;
-        try {
-            await deleteDoc(doc(db, 'tables', id));
-        } catch (error) {
-            console.error("Error deleting table:", error);
-        }
-    };
 
    return (
   <div className="bg-white rounded-lg shadow p-6 border border-brand-orange/20">
