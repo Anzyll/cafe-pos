@@ -1,4 +1,5 @@
 // lib/whatsapp.js
+// lib/whatsapp.js
 export const formatBillToText = (order, tableNumber) => {
   const cafeName = "The Cozy Cup Cafe";
   const dateObj = new Date();
