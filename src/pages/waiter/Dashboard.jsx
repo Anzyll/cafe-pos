@@ -108,7 +108,7 @@ const statusTextStyle = (status) => {
               : 'bg-white text-gray-600 hover:bg-brand-orange/10 border border-brand-orange/20'
           }`}
         >
-          {floor} Floor
+          {floor}
         </button>
       ))}
     </div>

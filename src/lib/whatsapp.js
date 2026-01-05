@@ -1,7 +1,7 @@
 // lib/whatsapp.js
 // lib/whatsapp.js
 export const formatBillToText = (order, tableNumber) => {
-  const cafeName = "The Cozy Cup Cafe";
+  const cafeName = "Baadal Bistro";
   const dateObj = new Date();
   const date = dateObj.toLocaleDateString();
   const time = dateObj.toLocaleTimeString();

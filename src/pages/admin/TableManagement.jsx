@@ -6,7 +6,7 @@ import { confirmToast, showError,showSuccess } from '../../lib/toast';
 
 export default function TableManagement() {
     const [tables, setTables] = useState([]);
-    const [newTable, setNewTable] = useState({ number: '', floor: '1' });
+    const [newTable, setNewTable] = useState({ number: '', floor: 'Floor 1' });
 
     useEffect(() => {
         const q = query(collection(db, 'tables'), orderBy('number'));
@@ -26,7 +26,7 @@ export default function TableManagement() {
                 status: 'free'
             });
             showSuccess("Table added successfully");
-            setNewTable({ number: '', floor: '1' });
+            setNewTable({ number: '', floor: 'Floor 1' });
         } catch (error) {
             console.error("Error adding table:", error);
             showError("Error adding table");
@@ -90,8 +90,8 @@ const handleDelete = (id) => {
               focus:outline-none focus:border-brand-orange
               focus:ring-2 focus:ring-brand-orange"
           >
-            <option value="1">Floor 1</option>
-            <option value="2">Floor 2</option>
+            <option value="Floor 1">Floor 1</option>
+            <option value="Floor 2">Floor 2</option>
             <option value="Outdoor">Outdoor</option>
           </select>
         </div>

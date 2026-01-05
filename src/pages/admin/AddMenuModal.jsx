@@ -6,7 +6,7 @@ import { showError, showSuccess } from "../../lib/toast";
 
 export default function AddMenuModal({ isOpen, onClose, editItem }) {
   const [name, setName] = useState("");
-  const [category, setCategory] = useState("Coffee");
+  const [category, setCategory] = useState("Sandwitches");
   const [price, setPrice] = useState("");
   const [isAvailable, setIsAvailable] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -19,7 +19,7 @@ export default function AddMenuModal({ isOpen, onClose, editItem }) {
       setIsAvailable(editItem.isAvailable);
     } else {
       setName("");
-      setCategory("Coffee");
+      setCategory("Sandwitches");
       setPrice("");
       setIsAvailable(true);
     }
@@ -103,10 +103,16 @@ export default function AddMenuModal({ isOpen, onClose, editItem }) {
                                     focus:outline-none focus:border-brand-orange
                                     focus:ring-2 focus:ring-brand-orange"
               >
-                <option value="Coffee">Coffee</option>
-                <option value="Food">Food</option>
-                <option value="Dessert">Dessert</option>
-                <option value="Cold Drinks">Cold Drinks</option>
+                <option value="Sandwitches">Sandwitches</option>
+                <option value="Snacks & Fries">Snacks & Fries</option>
+                <option value="Wrap">Wrap</option>
+                <option value="Burgers">Burgers</option>
+                <option value="Steaks">Steaks</option>
+                <option value="Fried Chicken">Fried Chicken</option>
+                <option value="Juice">Juice</option>
+                <option value="Tea & Coffee">Tea & Coffee</option>
+                <option value="Mojito">Mojito</option>
+                <option value="Shakes">Shakes</option>
               </select>
             </div>
 
