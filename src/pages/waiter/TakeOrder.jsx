@@ -293,7 +293,7 @@ export default function TakeOrder() {
     </div>
 
     {/* ORDER */}
-    <div className="w-full md:w-96 bg-white rounded-xl border border-brand-orange/20 flex flex-col">
+    <div className="fixed bottom-0 left-0 right-0 z-0 lg:static lg:w-96 bg-white rounded-t-xl lg:rounded-xl shadow-2xl lg:shadow-lg border border-brand-orange/20 flex flex-col max-h-[70vh] lg:max-h-full ">
       <div className="p-4 bg-brand-orange text-white font-bold rounded-t-xl">
         Table {table.number}
       </div>

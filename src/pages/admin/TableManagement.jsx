@@ -57,48 +57,49 @@ const handleDelete = (id) => {
     {/* Add Table Form */}
     <form
       onSubmit={handleAddTable}
-      className="flex gap-4 mb-8 bg-brand-orange/5 p-4 rounded-lg items-end border border-brand-orange/20"
+      className="gap-4 mb-8 bg-brand-orange/5 p-4 rounded-lg items-end border border-brand-orange/20"
     >
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Table Number
-        </label>
-        <input
-          type="text"
-          placeholder="e.g. 1A"
-          value={newTable.number}
-          onChange={e =>
-            setNewTable({ ...newTable, number: e.target.value })
-          }
-          className="border border-gray-300 rounded px-3 py-2 w-32
-            focus:outline-none focus:border-brand-orange
-            focus:ring-2 focus:ring-brand-orange"
-        />
-      </div>
+      <div className = "flex gap-1">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Table Number
+          </label>
+          <input
+            type="text"
+            placeholder="e.g. 1A"
+            value={newTable.number}
+            onChange={e =>
+              setNewTable({ ...newTable, number: e.target.value })
+            }
+            className="border border-gray-300 rounded px-3 py-2 w-32
+              focus:outline-none focus:border-brand-orange
+              focus:ring-2 focus:ring-brand-orange"
+          />
+        </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Floor
-        </label>
-        <select
-          value={newTable.floor}
-          onChange={e =>
-            setNewTable({ ...newTable, floor: e.target.value })
-          }
-          className="border border-gray-300 rounded px-3 py-2 w-32 bg-white
-            focus:outline-none focus:border-brand-orange
-            focus:ring-2 focus:ring-brand-orange"
-        >
-          <option value="1">Floor 1</option>
-          <option value="2">Floor 2</option>
-          <option value="Outdoor">Outdoor</option>
-        </select>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Floor
+          </label>
+          <select
+            value={newTable.floor}
+            onChange={e =>
+              setNewTable({ ...newTable, floor: e.target.value })
+            }
+            className="border border-gray-300 rounded px-3 py-2 w-32 bg-white
+              focus:outline-none focus:border-brand-orange
+              focus:ring-2 focus:ring-brand-orange"
+          >
+            <option value="1">Floor 1</option>
+            <option value="2">Floor 2</option>
+            <option value="Outdoor">Outdoor</option>
+          </select>
+        </div>
       </div>
-
       <button
         type="submit"
         className="bg-brand-orange hover:bg-brand-orangeDark
-          text-white px-4 py-2 rounded
+          text-white mt-2 px-4 py-2 rounded
           flex items-center gap-2 transition-colors"
       >
         <Plus size={18} /> Add Table

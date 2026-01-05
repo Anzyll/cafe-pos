@@ -222,7 +222,7 @@ const handleCheckout = async () => {
       </div>
 
       {/* RIGHT: BILLING */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 lg:static lg:w-96 bg-white rounded-t-xl lg:rounded-xl shadow-2xl lg:shadow-lg border border-brand-orange/20 flex flex-col max-h-[70vh] lg:max-h-full">
+      <div className="fixed bottom-0 left-0 right-0 z-0 lg:static lg:w-96 bg-white rounded-t-xl lg:rounded-xl shadow-2xl lg:shadow-lg border border-brand-orange/20 flex flex-col max-h-[70vh] lg:max-h-full">
         <div className="p-4 md:p-6 border-b border-brand-orange/20 bg-brand-orange/5">
           <h3 className="font-bold text-base md:text-lg text-gray-800 flex items-center gap-2">
             <Receipt className="text-brand-orange" />
