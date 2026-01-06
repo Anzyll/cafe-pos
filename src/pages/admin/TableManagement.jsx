@@ -95,16 +95,15 @@ const handleDelete = (id) => {
             <option value="Outdoor">Outdoor</option>
           </select>
         </div>
-      
+      </div>
       <button
         type="submit"
         className="bg-brand-orange hover:bg-brand-orangeDark
-          text-white mt-2 px-4 py-2 ml-10 rounded
+          text-white mt-2 px-4 py-2 rounded
           flex items-center gap-2 transition-colors"
       >
         <Plus size={18} /> Add Table
       </button>
-      </div>
     </form>
 
     {/* Tables List */}
