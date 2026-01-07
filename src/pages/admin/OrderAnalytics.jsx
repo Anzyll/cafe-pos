@@ -21,7 +21,8 @@ export default function OrderAnalytics() {
   const [stats, setStats] = useState({
     totalSales: 0,
     orderCount: 0,
-    avgValue: 0,
+    cashAmount: 0,
+    onlineAmount: 0,
   });
 
   useEffect(() => {
@@ -57,112 +58,123 @@ export default function OrderAnalytics() {
         (sum, o) => sum + (o.totalAmount || 0),
         0
       );
+      const cashAmount = paidOrders
+        .filter(o => o.paymentType === "cash")
+        .reduce((sum, o) => sum + (o.finalAmount || o.totalAmount || 0), 0);
 
+      const onlineAmount = paidOrders
+        .filter(o => o.paymentType === "online")
+        .reduce((sum, o) => sum + (o.finalAmount || o.totalAmount || 0), 0);
       const count = paidOrders.length;
 
       setStats({
         totalSales,
         orderCount: count,
-        avgValue: count ? Math.round(totalSales / count) : 0,
+        cashAmount,
+        onlineAmount,
       });
     } catch (err) {
       console.error("Analytics error", err);
     }
     setLoading(false);
   };
-const downloadPDF = () => {
-  const paidOrders = orders.filter(o => o.status === "paid");
+  const downloadPDF = () => {
+    const paidOrders = orders.filter(o => o.status === "paid");
 
-  if (paidOrders.length === 0) {
-    alert("No paid orders available for selected dates");
-    return;
-  }
-
-  const doc = new jsPDF("p", "mm", "a4");
-  const left = 14;
-  let currentY = 15;
-
-  // Header
-  doc.setFontSize(18);
-  doc.setFont("helvetica", "bold");
-  doc.text("Order Analytics Report", left, currentY);
-
-  currentY += 6;
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Date Range: ${fromDate} to ${toDate}`, left, currentY);
-
-  currentY += 4;
-  doc.setDrawColor(200);
-  doc.line(left, currentY, 196, currentY);
-
-  // Summary
-  currentY += 8;
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  doc.text("Summary", left, currentY);
-
-  currentY += 6;
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Total Sales: Rs. ${stats.totalSales} (paid)`, left, currentY);
-
-  currentY += 5;
-  doc.text(`Paid Orders: ${stats.orderCount}`, left, currentY);
-
-  currentY += 5;
-  doc.text(`Avg Order Value: Rs. ${stats.avgValue}`, left, currentY);
-
-  // Table
-  const tableData = paidOrders.map(order => [
-    order.id.slice(0, 6),
-    order.createdAt
-      ? order.createdAt.toDate().toLocaleString("en-IN")
-      : "--",
-    order.tableNumber || "-",
-    order.items.map(i => `${i.qty}x ${i.name}`).join(", "),
-    `Rs. ${order.totalAmount}`,
-    "PAID"
-  ]);
-
-  autoTable(doc, {
-    startY: currentY + 8,
-    head: [[
-      "Order ID",
-      "Date & Time",
-      "Table",
-      "Items",
-      "Total",
-      "Status"
-    ]],
-    body: tableData,
-    styles: {
-      fontSize: 9,
-      cellPadding: 3,
-      valign: "top"
-    },
-    headStyles: {
-      fillColor: [255, 165, 0],
-      fontStyle: "bold",
-       textColor: [0, 0, 0] 
-    },
-    columnStyles: {
-      3: { cellWidth: 65 },
-      4: { halign: "right" }
+    if (paidOrders.length === 0) {
+      alert("No paid orders available for selected dates");
+      return;
     }
-  });
 
-  const pageHeight = doc.internal.pageSize.height;
-  doc.setFontSize(8);
-  doc.setTextColor(120);
-  doc.text(
-    `Generated on ${new Date().toLocaleString("en-IN")}`,
-    left,
-    pageHeight - 10
-  );
+    const doc = new jsPDF("p", "mm", "a4");
+    const left = 14;
+    let currentY = 15;
 
-  doc.save(`paid_orders_${fromDate}_to_${toDate}.pdf`);
-};
+    // Header
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text("Order Analytics Report", left, currentY);
+
+    currentY += 6;
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Date Range: ${fromDate} to ${toDate}`, left, currentY);
+
+    currentY += 4;
+    doc.setDrawColor(200);
+    doc.line(left, currentY, 196, currentY);
+
+    // Summary
+    currentY += 8;
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Summary", left, currentY);
+
+    currentY += 6;
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Total Sales: Rs. ${stats.totalSales} (paid)`, left, currentY);
+
+    currentY += 5;
+    doc.text(`Paid Orders: ${stats.orderCount}`, left, currentY);
+    currentY += 5;
+    doc.text(`Cash: Rs. ${stats.cashAmount}`, left, currentY);
+    currentY += 5;
+    doc.text(`Online: Rs. ${stats.onlineAmount}`, left, currentY);
+
+
+    // Table
+    const tableData = paidOrders.map(order => [
+      order.id.slice(0, 6),
+      order.createdAt
+        ? order.createdAt.toDate().toLocaleString("en-IN")
+        : "--",
+      order.tableNumber || "-",
+      order.items.map(i => `${i.qty}x ${i.name}`).join(", "),
+      order.paymentType?.toUpperCase() || "-",
+      `Rs. ${order.totalAmount}`,
+      "PAID"
+    ]);
+
+    autoTable(doc, {
+      startY: currentY + 8,
+      head: [[
+        "Order ID",
+        "Date & Time",
+        "Table",
+        "Items",
+        "Payment",
+        "Total",
+        "Status"
+      ]],
+      body: tableData,
+      styles: {
+        fontSize: 9,
+        cellPadding: 3,
+        valign: "top"
+      },
+      headStyles: {
+        fillColor: [255, 165, 0],
+        fontStyle: "bold",
+        textColor: [0, 0, 0]
+      },
+      columnStyles: {
+        3: { cellWidth: 65 },
+        4: { halign: "right" }
+      }
+    });
+
+    const pageHeight = doc.internal.pageSize.height;
+    doc.setFontSize(8);
+    doc.setTextColor(120);
+    doc.text(
+      `Generated on ${new Date().toLocaleString("en-IN")}`,
+      left,
+      pageHeight - 10
+    );
+
+    doc.save(`paid_orders_${fromDate}_to_${toDate}.pdf`);
+  };
 
   return (
     <div className="bg-white rounded-lg shadow p-6 mt-8 border border-brand-orange/20">
@@ -200,9 +212,14 @@ const downloadPDF = () => {
           <h4 className="text-sm font-medium">Paid Orders</h4>
           <div className="text-3xl font-bold">{stats.orderCount}</div>
         </div>
-        <div className="p-4 bg-purple-50 rounded-xl">
-          <h4 className="text-sm font-medium">Avg Order Value</h4>
-          <div className="text-3xl font-bold">₹{stats.avgValue}</div>
+        <div className="p-4 bg-green-50 rounded-xl">
+          <h4 className="text-sm font-medium">Cash Payments</h4>
+          <div className="text-3xl font-bold">₹{stats.cashAmount}</div>
+        </div>
+
+        <div className="p-4 bg-blue-50 rounded-xl">
+          <h4 className="text-sm font-medium">Online Payments</h4>
+          <div className="text-3xl font-bold">₹{stats.onlineAmount}</div>
         </div>
       </div>
 
@@ -222,6 +239,7 @@ const downloadPDF = () => {
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase">Items</th>
                   <th className="px-4 py-3 text-right text-xs font-semibold uppercase">Total</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold uppercase">Status</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase">Payment</th>
                 </tr>
               </thead>
 
@@ -251,6 +269,7 @@ const downloadPDF = () => {
                       </td>
                       <td className="px-4 py-3 text-right font-bold">₹{order.totalAmount}</td>
                       <td className="px-4 py-3 text-center">{order.status}</td>
+                      <td className="px-4 py-3 text-center capitalize">{order.paymentType || "-"}</td>
                     </tr>
                   );
                 })}

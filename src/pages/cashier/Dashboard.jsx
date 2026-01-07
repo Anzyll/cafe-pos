@@ -22,6 +22,7 @@ export default function CashierDashboard() {
   const [customerPhone, setCustomerPhone] = useState("");
   const [offerPercent, setOfferPercent] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [paymentType, setPaymentType] = useState("cash");
 
   /* ========================
        REAL-TIME LISTENERS
@@ -76,6 +77,8 @@ export default function CashierDashboard() {
     setSelectedTable(table);
     setCustomerPhone("");
     setOfferPercent(0);
+    setPaymentType("cash");
+
   };
 
   const handleShareWhatsApp = () => {
@@ -105,58 +108,60 @@ export default function CashierDashboard() {
       whatsappSentAt: serverTimestamp(),
     }).catch(console.error);
   };
-const handleCheckout = async () => {
-  if (!selectedTable || !activeOrder) return;
 
-  if (selectedTable.status !== "occupied") {
-    showError("This table is not occupied.");
-    return;
-  }
+  const handleCheckout = async () => {
+    if (!selectedTable || !activeOrder) return;
 
-  const cleanPhone = customerPhone.replace(/\D/g, "");
-  const hasWhatsApp = cleanPhone.length >= 10;
-
-  try {
-    // Optional WhatsApp bill
-    if (hasWhatsApp) {
-      const text = formatBillToText(
-        {
-          ...activeOrder,
-          offerPercent,
-          discountAmount,
-          finalAmount: finalPayable,
-        },
-        selectedTable.number
-      );
-      shareBillOnWhatsApp(cleanPhone, text);
+    if (selectedTable.status !== "occupied") {
+      showError("This table is not occupied.");
+      return;
     }
 
-    // Mark order as paid
-    await updateDoc(doc(db, "orders", activeOrder.id), {
-      status: "paid",
-      paidAt: serverTimestamp(),
-      customerPhone: hasWhatsApp ? cleanPhone : null,
-      whatsappSent: hasWhatsApp,
-      whatsappSentAt: hasWhatsApp ? serverTimestamp() : null,
-      offerPercent,
-      discountAmount,
-      finalAmount: finalPayable,
-    });
+    const cleanPhone = customerPhone.replace(/\D/g, "");
+    const hasWhatsApp = cleanPhone.length >= 10;
 
-    // Free the table
-    await updateDoc(doc(db, "tables", selectedTable.id), {
-      status: "available",
-    });
+    try {
+      // Optional WhatsApp bill
+      if (hasWhatsApp) {
+        const text = formatBillToText(
+          {
+            ...activeOrder,
+            offerPercent,
+            discountAmount,
+            finalAmount: finalPayable,
+          },
+          selectedTable.number
+        );
+        shareBillOnWhatsApp(cleanPhone, text);
+      }
 
-    showSuccess("Payment successful");
-    setSelectedTable(null);
-    setCustomerPhone("");
-    setOfferPercent(0);
-  } catch (err) {
-    console.error("Checkout error", err);
-    showError("Checkout failed");
-  }
-};
+      // Mark order as paid
+      await updateDoc(doc(db, "orders", activeOrder.id), {
+        status: "paid",
+        paidAt: serverTimestamp(),
+        customerPhone: hasWhatsApp ? cleanPhone : null,
+        whatsappSent: hasWhatsApp,
+        whatsappSentAt: hasWhatsApp ? serverTimestamp() : null,
+        offerPercent,
+        discountAmount,
+        finalAmount: finalPayable,
+        paymentType,
+      });
+
+      // Free the table
+      await updateDoc(doc(db, "tables", selectedTable.id), {
+        status: "available",
+      });
+
+      showSuccess("Payment successful");
+      setSelectedTable(null);
+      setCustomerPhone("");
+      setOfferPercent(0);
+    } catch (err) {
+      console.error("Checkout error", err);
+      showError("Checkout failed");
+    }
+  };
 
 
 
@@ -184,23 +189,20 @@ const handleCheckout = async () => {
                   key={table.id}
                   onClick={() => handleTableClick(table)}
                   className={`p-4 rounded-lg border-2 flex flex-col items-center gap-2 transition-all
-                                        ${
-                                          selectedTable?.id === table.id
-                                            ? "ring-2 ring-brand-orange ring-offset-2"
-                                            : ""
-                                        }
-                                        ${
-                                          isOccupied
-                                            ? "bg-brand-orange/10 border-brand-orange/40"
-                                            : "bg-green-50 border-green-300"
-                                        } lg:hover:scale-105`}
+                                        ${selectedTable?.id === table.id
+                      ? "ring-2 ring-brand-orange ring-offset-2"
+                      : ""
+                    }
+                                        ${isOccupied
+                      ? "bg-brand-orange/10 border-brand-orange/40"
+                      : "bg-green-50 border-green-300"
+                    } lg:hover:scale-105`}
                 >
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      isOccupied
+                    className={`w-10 h-10 rounded-full flex items-center justify-center ${isOccupied
                         ? "bg-brand-orange text-white"
                         : "bg-green-200 text-green-700"
-                    }`}
+                      }`}
                   >
                     <Users size={20} />
                   </div>
@@ -289,6 +291,37 @@ const handleCheckout = async () => {
               </div>
 
               {/* Actions */}
+              {/* Payment Type */}
+              <div className="pt-3 border-t space-y-2">
+                <label className="text-sm font-semibold text-gray-600">
+                  Payment Method
+                </label>
+
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="radio"
+                      name="paymentType"
+                      value="cash"
+                      checked={paymentType === "cash"}
+                      onChange={() => setPaymentType("cash")}
+                    />
+                    Cash
+                  </label>
+
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="radio"
+                      name="paymentType"
+                      value="online"
+                      checked={paymentType === "online"}
+                      onChange={() => setPaymentType("online")}
+                    />
+                    Online
+                  </label>
+                </div>
+              </div>
+
               <div className="space-y-3 pt-4">
                 <div className="flex gap-2">
                   <input
