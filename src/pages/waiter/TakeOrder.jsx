@@ -1,5 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
+
 import {
   collection,
   doc,
@@ -10,23 +12,25 @@ import {
   query,
   where,
   limit,
-  serverTimestamp
-} from 'firebase/firestore';
-import { db, auth } from '../../lib/firebase';
-import { ArrowLeft, Plus, Minus, ChefHat } from 'lucide-react';
-import { showError, showSuccess } from '../../lib/toast';
+  serverTimestamp,
+} from "firebase/firestore";
+import { db, auth } from "../../lib/firebase";
+import { ArrowLeft, Plus, Minus, ChefHat } from "lucide-react";
+import { showError, showSuccess } from "../../lib/toast";
 
 export default function TakeOrder() {
   const { tableId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isParcel = location.pathname === "/cashier/parcel";
 
   const [table, setTable] = useState(null);
   const [menu, setMenu] = useState([]);
   const [activeOrder, setActiveOrder] = useState(null); // EXISTING ORDER
   const [cart, setCart] = useState({}); // NEW ITEMS
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('All');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("All");
   const [submitting, setSubmitting] = useState(false);
 
   /* ----------------------------------
@@ -36,34 +40,38 @@ export default function TakeOrder() {
     const loadData = async () => {
       try {
         // Table
-        const tableSnap = await getDoc(doc(db, 'tables', tableId));
-        if (!tableSnap.exists()) {
-          showError('Table not found');
-          navigate('/waiter');
-          return;
+        if (!isParcel) {
+          const tableSnap = await getDoc(doc(db, "tables", tableId));
+          if (!tableSnap.exists()) {
+            showError("Table not found");
+            navigate("/waiter");
+            return;
+          }
+          setTable({ id: tableSnap.id, ...tableSnap.data() });
         }
-        setTable({ id: tableSnap.id, ...tableSnap.data() });
 
         // Menu
-        const menuSnap = await getDocs(collection(db, 'menu'));
+        const menuSnap = await getDocs(collection(db, "menu"));
         setMenu(
           menuSnap.docs
-            .map(d => ({ id: d.id, ...d.data() }))
-            .filter(m => m.isAvailable)
+            .map((d) => ({ id: d.id, ...d.data() }))
+            .filter((m) => m.isAvailable)
         );
 
         // Active Order
-        const orderQuery = query(
-          collection(db, 'orders'),
-          where('tableId', '==', tableId),
-          where('status', 'in', ['pending', 'preparing']),
-          limit(1)
-        );
+        if (!isParcel) {
+          const orderQuery = query(
+            collection(db, "orders"),
+            where("tableId", "==", tableId),
+            where("status", "in", ["pending", "preparing"]),
+            limit(1)
+          );
 
-        const orderSnap = await getDocs(orderQuery);
-        if (!orderSnap.empty) {
-          const docSnap = orderSnap.docs[0];
-          setActiveOrder({ id: docSnap.id, ...docSnap.data() });
+          const orderSnap = await getDocs(orderQuery);
+          if (!orderSnap.empty) {
+            const docSnap = orderSnap.docs[0];
+            setActiveOrder({ id: docSnap.id, ...docSnap.data() });
+          }
         }
 
         setLoading(false);
@@ -80,17 +88,17 @@ export default function TakeOrder() {
      CART ACTIONS (NEW ITEMS)
   ---------------------------------- */
   const addToCart = (item) => {
-    setCart(prev => ({
+    setCart((prev) => ({
       ...prev,
       [item.id]: {
         ...item,
-        qty: (prev[item.id]?.qty || 0) + 1
-      }
+        qty: (prev[item.id]?.qty || 0) + 1,
+      },
     }));
   };
 
   const removeFromCart = (itemId) => {
-    setCart(prev => {
+    setCart((prev) => {
       const copy = { ...prev };
       if (!copy[itemId]) return prev;
       if (copy[itemId].qty > 1) copy[itemId].qty -= 1;
@@ -106,26 +114,21 @@ export default function TakeOrder() {
     if (!activeOrder) return;
 
     const updatedItems = activeOrder.items
-      .map(i =>
-        i.id === itemId ? { ...i, qty: i.qty - 1 } : i
-      )
-      .filter(i => i.qty > 0);
+      .map((i) => (i.id === itemId ? { ...i, qty: i.qty - 1 } : i))
+      .filter((i) => i.qty > 0);
 
-    const newTotal = updatedItems.reduce(
-      (s, i) => s + i.price * i.qty,
-      0
-    );
+    const newTotal = updatedItems.reduce((s, i) => s + i.price * i.qty, 0);
 
-    await updateDoc(doc(db, 'orders', activeOrder.id), {
+    await updateDoc(doc(db, "orders", activeOrder.id), {
       items: updatedItems,
       totalAmount: newTotal,
-      updatedAt: serverTimestamp()
+      updatedAt: serverTimestamp(),
     });
 
-    setActiveOrder(prev => ({
+    setActiveOrder((prev) => ({
       ...prev,
       items: updatedItems,
-      totalAmount: newTotal
+      totalAmount: newTotal,
     }));
   };
 
@@ -135,13 +138,13 @@ export default function TakeOrder() {
   const mergedItems = useMemo(() => {
     const map = {};
 
-    activeOrder?.items?.forEach(i => {
-      map[i.id] = { ...i, source: 'existing' };
+    activeOrder?.items?.forEach((i) => {
+      map[i.id] = { ...i, source: "existing" };
     });
 
-    Object.values(cart).forEach(i => {
+    Object.values(cart).forEach((i) => {
       if (map[i.id]) map[i.id].qty += i.qty;
-      else map[i.id] = { ...i, source: 'new' };
+      else map[i.id] = { ...i, source: "new" };
     });
 
     return Object.values(map);
@@ -152,77 +155,127 @@ export default function TakeOrder() {
     0
   );
 
-  const totalAmount =
-    (activeOrder?.totalAmount || 0) + newItemsTotal;
+  const totalAmount = (activeOrder?.totalAmount || 0) + newItemsTotal;
 
   /* ----------------------------------
      PLACE / UPDATE ORDER
   ---------------------------------- */
   const placeOrder = async () => {
-    if (Object.keys(cart).length === 0) return;
-    setSubmitting(true);
+  if (Object.keys(cart).length === 0) return;
 
-    try {
-      if (activeOrder) {
-        // MERGE INTO EXISTING ORDER
-        const map = {};
-        activeOrder.items.forEach(i => (map[i.id] = { ...i }));
+  setSubmitting(true);
 
-        Object.values(cart).forEach(i => {
-          if (map[i.id]) map[i.id].qty += i.qty;
-          else map[i.id] = { id: i.id, name: i.name, price: i.price, qty: i.qty };
-        });
+  try {
+    /* =========================
+       PARCEL ORDER (CASHIER)
+    ========================== */
+    if (isParcel) {
+      const orderRef = await addDoc(collection(db, "orders"), {
+        orderType: "parcel",
 
-        const items = Object.values(map);
-        const total = items.reduce((s, i) => s + i.price * i.qty, 0);
+        items: Object.values(cart).map((i) => ({
+          id: i.id,
+          name: i.name,
+          price: i.price,
+          qty: i.qty,
+        })),
 
-        await updateDoc(doc(db, 'orders', activeOrder.id), {
-          items,
-          totalAmount: total,
-          updatedAt: serverTimestamp()
-        });
+        totalAmount: newItemsTotal,
+        status: "pending",
 
-      } else {
-        // CREATE FIRST ORDER
-        await addDoc(collection(db, 'orders'), {
-          tableId,
-          tableNumber: table.number,
-          items: Object.values(cart).map(i => ({
+        createdAt: serverTimestamp(),
+        createdBy: auth.currentUser?.uid || "cashier",
+      });
+
+      setCart({});
+      setSubmitting(false);
+
+      showSuccess("Parcel order created");
+
+      navigate("/cashier", {
+        state: { parcelOrderId: orderRef.id },
+      });
+
+      return; // 🔴 ABSOLUTE STOP — NOTHING BELOW RUNS
+    }
+
+    /* =========================
+       DINE-IN ORDER (WAITER)
+    ========================== */
+    if (activeOrder) {
+      const map = {};
+      activeOrder.items.forEach((i) => {
+        map[i.id] = { ...i };
+      });
+
+      Object.values(cart).forEach((i) => {
+        if (map[i.id]) {
+          map[i.id].qty += i.qty;
+        } else {
+          map[i.id] = {
             id: i.id,
             name: i.name,
             price: i.price,
-            qty: i.qty
-          })),
-          status: 'pending',
-          totalAmount: newItemsTotal,
-          createdAt: serverTimestamp(),
-          createdBy: auth.currentUser?.uid || 'unknown'
-        });
+            qty: i.qty,
+          };
+        }
+      });
 
-        await updateDoc(doc(db, 'tables', tableId), {
-          status: 'occupied'
-        });
-      }
+      const items = Object.values(map);
+      const total = items.reduce((s, i) => s + i.price * i.qty, 0);
 
-      setCart({});
-      showSuccess("Order updated successfully");
-      navigate('/waiter');
-    } catch (err) {
-      console.error(err);
-      showError("Failed to place order. Please try again.");
+      await updateDoc(doc(db, "orders", activeOrder.id), {
+        items,
+        totalAmount: total,
+        updatedAt: serverTimestamp(),
+      });
+    } else {
+      await addDoc(collection(db, "orders"), {
+        orderType: "dine_in",
+
+        tableId,
+        tableNumber: table.number, // ✅ SAFE — parcel never reaches here
+
+        items: Object.values(cart).map((i) => ({
+          id: i.id,
+          name: i.name,
+          price: i.price,
+          qty: i.qty,
+        })),
+
+        totalAmount: newItemsTotal,
+        status: "pending",
+
+        createdAt: serverTimestamp(),
+        createdBy: auth.currentUser?.uid || "waiter",
+      });
+
+      await updateDoc(doc(db, "tables", tableId), {
+        status: "occupied",
+      });
     }
 
-    setSubmitting(false);
-  };
+    setCart({});
+    showSuccess("Order updated successfully");
+    navigate("/waiter");
+  } catch (err) {
+    console.error("Place order error:", err);
+    showError("Failed to place order. Please try again.");
+  }
+
+  setSubmitting(false);
+};
+
 
   /* ----------------------------------
      FILTER MENU
   ---------------------------------- */
-  const categories = ['All', ...new Set(menu.map(m => m.category))];
+  const categories = ["All", ...new Set(menu.map((m) => m.category))];
 
-  const filteredMenu = menu.filter(m =>
-    m.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-    (categoryFilter === 'All' || m.category === categoryFilter)
+  const filteredMenu = menu.filter(
+    (m) =>
+      m.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      (categoryFilter === "All" || m.category === categoryFilter)
   );
 
   if (loading) return <div className="p-8 text-center">Loading...</div>;
@@ -241,10 +294,9 @@ export default function TakeOrder() {
     pb-[45vh] lg:pb-0
   "
       >
-
         <div className="p-4 border-b border-brand-orange/20 flex gap-4">
           <button
-            onClick={() => navigate('/waiter')}
+            onClick={() => navigate("/waiter")}
             className="text-brand-orange hover:text-brand-orangeDark"
           >
             <ArrowLeft />
@@ -256,20 +308,21 @@ export default function TakeOrder() {
             focus:ring-2 focus:ring-brand-orange"
             placeholder="Search menu..."
             value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
         {/* Categories */}
         <div className="p-4 flex gap-2 overflow-x-auto">
-          {categories.map(c => (
+          {categories.map((c) => (
             <button
               key={c}
               onClick={() => setCategoryFilter(c)}
-              className={`px-4 py-1 rounded-full transition-colors ${categoryFilter === c
-                  ? 'bg-brand-orange text-white shadow'
-                  : 'bg-gray-100 text-gray-700 hover:bg-brand-orange/10'
-                }`}
+              className={`px-4 py-1 rounded-full transition-colors ${
+                categoryFilter === c
+                  ? "bg-brand-orange text-white shadow"
+                  : "bg-gray-100 text-gray-700 hover:bg-brand-orange/10"
+              }`}
             >
               {c}
             </button>
@@ -278,7 +331,7 @@ export default function TakeOrder() {
 
         {/* Menu Grid */}
         <div className="flex-1 p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto">
-          {filteredMenu.map(item => (
+          {filteredMenu.map((item) => (
             <div
               key={item.id}
               className="border border-gray-200 p-4 rounded-lg flex justify-between hover:border-brand-orange/40 transition-colors"
@@ -286,7 +339,9 @@ export default function TakeOrder() {
               <div>
                 <div className="font-bold text-gray-800">{item.name}</div>
                 <div className="text-sm text-gray-500">{item.category}</div>
-                <div className="font-semibold text-brand-orange">₹{item.price}</div>
+                <div className="font-semibold text-brand-orange">
+                  ₹{item.price}
+                </div>
               </div>
               <button
                 onClick={() => addToCart(item)}
@@ -302,7 +357,7 @@ export default function TakeOrder() {
       {/* ORDER */}
       <div className="fixed bottom-0 left-0 right-0 z-50 lg:static lg:w-96 bg-white rounded-t-xl lg:rounded-xl shadow-2xl lg:shadow-lg border border-brand-orange/20 flex flex-col max-h-[45vh] lg:max-h-full ">
         <div className="p-4 bg-brand-orange text-white font-bold rounded-t-xl">
-          Table {table.number}
+          {isParcel ? "Parcel Order" : `Table ${table.number}`}
         </div>
 
         <div className="flex-1 p-4 space-y-3 overflow-y-auto">
@@ -312,13 +367,14 @@ export default function TakeOrder() {
               <p>No items</p>
             </div>
           ) : (
-            mergedItems.map(i => (
+            mergedItems.map((i) => (
               <div
                 key={i.id}
-                className={`p-3 rounded-lg flex justify-between border ${i.source === 'existing'
-                    ? 'bg-brand-orange/10 border-brand-orange/30'
-                    : 'bg-gray-50 border-gray-200'
-                  }`}
+                className={`p-3 rounded-lg flex justify-between border ${
+                  i.source === "existing"
+                    ? "bg-brand-orange/10 border-brand-orange/30"
+                    : "bg-gray-50 border-gray-200"
+                }`}
               >
                 <div>
                   <div className="font-medium text-gray-800">{i.name}</div>
@@ -330,7 +386,7 @@ export default function TakeOrder() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() =>
-                      i.source === 'new'
+                      i.source === "new"
                         ? removeFromCart(i.id)
                         : removeExistingItem(i.id)
                     }
@@ -366,7 +422,7 @@ export default function TakeOrder() {
             text-white py-3 rounded-xl
             transition-colors disabled:opacity-50"
           >
-            {submitting ? 'Updating...' : 'Place Order'}
+            {submitting ? "Updating..." : "Place Order"}
           </button>
         </div>
       </div>
