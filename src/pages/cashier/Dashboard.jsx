@@ -13,6 +13,7 @@ import { db } from "../../lib/firebase";
 import { formatBillToText, shareBillOnWhatsApp } from "../../lib/whatsapp";
 import { Users, Receipt, Smartphone, CheckCircle, Coffee } from "lucide-react";
 import { showError, showSuccess } from "../../lib/toast";
+import { useNavigate } from "react-router-dom";
 
 export default function CashierDashboard() {
   const [tables, setTables] = useState([]);
@@ -23,15 +24,19 @@ export default function CashierDashboard() {
   const [offerPercent, setOfferPercent] = useState(0);
   const [loading, setLoading] = useState(true);
   const [paymentType, setPaymentType] = useState("cash");
+  const [orderMode, setOrderMode] = useState("dine_in");
+  const [parcelCharge, setParcelCharge] = useState(0);
+
+  const navigate = useNavigate();
 
   /* ========================
        REAL-TIME LISTENERS
-    ========================= */
+  ========================= */
   useEffect(() => {
     const qTables = query(collection(db, "tables"), orderBy("number"));
-    const unsubTables = onSnapshot(qTables, (snap) => {
-      setTables(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
+    const unsubTables = onSnapshot(qTables, (snap) =>
+      setTables(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+    );
 
     const qOrders = query(
       collection(db, "orders"),
@@ -50,39 +55,62 @@ export default function CashierDashboard() {
   }, []);
 
   /* ========================
-       SELECTED TABLE → ORDER
-    ========================= */
+       TABLE → ORDER
+  ========================= */
   useEffect(() => {
+    if (orderMode === "parcel") return;
+
     if (!selectedTable) {
       setActiveOrder(null);
       return;
     }
+
     const order = orders.find((o) => o.tableId === selectedTable.id);
     setActiveOrder(order || null);
-  }, [selectedTable, orders]);
+  }, [selectedTable, orders, orderMode]);
+
+  
 
   /* ========================
-       DERIVED BILL VALUES
-    ========================= */
-  const originalTotal = activeOrder?.totalAmount || 0;
+       DERIVED VALUES
+  ========================= */
+  const parcelOrders = orders.filter(
+    (o) => o.orderType === "parcel" && o.status !== "paid"
+  );
 
+  const originalTotal = activeOrder?.totalAmount || 0;
   const discountAmount = Math.round((originalTotal * offerPercent) / 100);
 
-  const finalPayable = Math.max(originalTotal - discountAmount, 0);
+  const finalPayable = Math.max(
+    originalTotal -
+      discountAmount +
+      (orderMode === "parcel" ? parcelCharge : 0),
+    0
+  );
 
   /* ========================
        HANDLERS
-    ========================= */
+  ========================= */
   const handleTableClick = (table) => {
     setSelectedTable(table);
+    setOrderMode("dine_in");
+    setParcelCharge(0);
     setCustomerPhone("");
     setOfferPercent(0);
     setPaymentType("cash");
+  };
 
+  const handleParcelClick = (order) => {
+    setOrderMode("parcel");
+    setSelectedTable(null);
+    setActiveOrder(order);
+    setParcelCharge(order.parcelCharge || 0);
+    setOfferPercent(order.offerPercent || 0);
+    setPaymentType("cash");
   };
 
   const handleShareWhatsApp = () => {
-    if (!activeOrder || !selectedTable) return;
+    if (!activeOrder) return;
 
     const cleanPhone = customerPhone.replace(/\D/g, "");
     if (cleanPhone.length < 10) {
@@ -97,7 +125,7 @@ export default function CashierDashboard() {
         discountAmount,
         finalAmount: finalPayable,
       },
-      selectedTable.number
+      orderMode === "parcel" ? "Parcel" : selectedTable.number
     );
 
     shareBillOnWhatsApp(cleanPhone, text);
@@ -110,109 +138,113 @@ export default function CashierDashboard() {
   };
 
   const handleCheckout = async () => {
-    if (!selectedTable || !activeOrder) return;
-
-    if (selectedTable.status !== "occupied") {
-      showError("This table is not occupied.");
-      return;
-    }
-
-    const cleanPhone = customerPhone.replace(/\D/g, "");
-    const hasWhatsApp = cleanPhone.length >= 10;
+    if (!activeOrder) return;
 
     try {
-      // Optional WhatsApp bill
-      if (hasWhatsApp) {
-        const text = formatBillToText(
-          {
-            ...activeOrder,
-            offerPercent,
-            discountAmount,
-            finalAmount: finalPayable,
-          },
-          selectedTable.number
-        );
-        shareBillOnWhatsApp(cleanPhone, text);
-      }
-
-      // Mark order as paid
       await updateDoc(doc(db, "orders", activeOrder.id), {
-        status: "paid",
-        paidAt: serverTimestamp(),
-        customerPhone: hasWhatsApp ? cleanPhone : null,
-        whatsappSent: hasWhatsApp,
-        whatsappSentAt: hasWhatsApp ? serverTimestamp() : null,
+        orderType: orderMode,
+        parcelCharge: orderMode === "parcel" ? parcelCharge : 0,
         offerPercent,
         discountAmount,
         finalAmount: finalPayable,
         paymentType,
+        status: "paid",
+        paidAt: serverTimestamp(),
       });
 
-      // Free the table
-      await updateDoc(doc(db, "tables", selectedTable.id), {
-        status: "available",
-      });
+      if (orderMode === "dine_in" && selectedTable) {
+        await updateDoc(doc(db, "tables", selectedTable.id), {
+          status: "available",
+        });
+      }
 
       showSuccess("Payment successful");
+
+      setActiveOrder(null);
       setSelectedTable(null);
-      setCustomerPhone("");
+      setParcelCharge(0);
       setOfferPercent(0);
+      setCustomerPhone("");
     } catch (err) {
-      console.error("Checkout error", err);
+      console.error(err);
       showError("Checkout failed");
     }
   };
 
-
-
   /* ========================
        UI
-    ========================= */
+  ========================= */
   return (
-    <div className="relative min-h-[calc(100vh-100px)] flex flex-col lg:flex-row gap-4 lg:gap-6">
-      {/* LEFT: TABLES */}
-      <div className="flex-1 bg-white rounded-xl shadow-sm border border-brand-orange/20 p-4 md:p-6 overflow-y-auto pb-36 lg:pb-6">
-        <h2 className="text-lg md:text-xl font-bold mb-4 md:mb-6 text-gray-800">
-          Tables Overview
-        </h2>
+    <div className="relative min-h-[calc(100vh-100px)] flex flex-col lg:flex-row gap-6">
+      {/* LEFT PANEL */}
+      <div className="flex-1 bg-white rounded-xl border p-6 overflow-y-auto pb-36 lg:pb-6">
+        <h2 className="text-xl font-bold mb-4">Tables Overview</h2>
 
+        <button
+          onClick={() => navigate("/cashier/parcel")}
+          className="w-full mb-4 py-3 bg-brand-orange text-white font-bold rounded-lg"
+        >
+          Parcel Order
+        </button>
+
+        {/* PARCEL ORDERS */}
+        <div className="mb-6">
+          <h3 className="text-sm font-semibold mb-2">Parcel Orders</h3>
+
+          {parcelOrders.length === 0 ? (
+            <p className="text-xs text-gray-400">No parcel orders</p>
+          ) : (
+            <div className="space-y-2">
+              {parcelOrders.map((order) => (
+                <button
+                  key={order.id}
+                  onClick={() => handleParcelClick(order)}
+                  className={`w-full p-3 rounded border flex justify-between text-sm
+                    ${
+                      activeOrder?.id === order.id
+                        ? "border-brand-orange bg-brand-orange/10"
+                        : "border-gray-200 bg-white"
+                    }`}
+                >
+                  <span>Parcel #{order.tokenNo || order.id.slice(-4)}</span>
+                  <span className="font-semibold text-brand-orange">
+                    ₹{order.totalAmount}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* TABLES */}
         {loading ? (
           <p>Loading...</p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {tables.map((table) => {
               const isOccupied = table.status === "occupied";
-              const previewOrder = orders.find((o) => o.tableId === table.id);
+              const previewOrder = orders.find(
+                (o) => o.tableId === table.id
+              );
 
               return (
                 <button
                   key={table.id}
                   onClick={() => handleTableClick(table)}
-                  className={`p-4 rounded-lg border-2 flex flex-col items-center gap-2 transition-all
-                                        ${selectedTable?.id === table.id
-                      ? "ring-2 ring-brand-orange ring-offset-2"
-                      : ""
-                    }
-                                        ${isOccupied
-                      ? "bg-brand-orange/10 border-brand-orange/40"
-                      : "bg-green-50 border-green-300"
-                    } lg:hover:scale-105`}
+                  className={`p-4 rounded-lg border-2 flex flex-col items-center gap-2
+                    ${
+                      isOccupied
+                        ? "bg-brand-orange/10 border-brand-orange"
+                        : "bg-green-50 border-green-300"
+                    }`}
                 >
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center ${isOccupied
-                        ? "bg-brand-orange text-white"
-                        : "bg-green-200 text-green-700"
-                      }`}
-                  >
-                    <Users size={20} />
-                  </div>
-
-                  <span className="font-semibold text-gray-700">
+                  <Users />
+                  <span className="font-semibold">
                     Table {table.number}
                   </span>
 
                   {isOccupied && previewOrder && (
-                    <span className="text-xs bg-white px-2 py-0.5 rounded border border-brand-orange/30 shadow-sm">
+                    <span className="text-xs bg-white px-2 py-0.5 rounded border">
                       ₹{previewOrder.totalAmount}
                     </span>
                   )}
@@ -223,38 +255,34 @@ export default function CashierDashboard() {
         )}
       </div>
 
-      {/* RIGHT: BILLING */}
-      <div className="fixed bottom-0 left-0 right-0 z-0 lg:static lg:w-96 bg-white rounded-t-xl lg:rounded-xl shadow-2xl lg:shadow-lg border border-brand-orange/20 flex flex-col max-h-[70vh] lg:max-h-full">
-        <div className="p-4 md:p-6 border-b border-brand-orange/20 bg-brand-orange/5">
-          <h3 className="font-bold text-base md:text-lg text-gray-800 flex items-center gap-2">
-            <Receipt className="text-brand-orange" />
-            Checkout / Billing
+      {/* RIGHT PANEL – CHECKOUT */}
+      <div className="fixed bottom-0 left-0 right-0 lg:static lg:w-96 bg-white rounded-t-xl lg:rounded-xl border shadow-lg max-h-[70vh] lg:max-h-full flex flex-col">
+        <div className="p-5 border-b">
+          <h3 className="font-bold flex items-center gap-2">
+            <Receipt /> Checkout
           </h3>
         </div>
 
-        <div className="flex-1 p-4 md:p-6 overflow-y-auto">
-          {!selectedTable ? (
-            <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-2">
-              <Coffee size={36} className="opacity-20" />
-              <p className="text-sm">Select a table</p>
+        <div className="flex-1 p-5 overflow-y-auto">
+          {!activeOrder ? (
+            <div className="h-full flex flex-col items-center justify-center text-gray-400">
+              <Coffee size={40} />
+              <p>Select table or parcel order</p>
             </div>
-          ) : activeOrder ? (
-            <div className="space-y-5">
-              <div className="space-y-2 text-sm">
-                {activeOrder.items.map((item, idx) => (
-                  <div key={idx} className="flex justify-between">
-                    <span>
-                      {item.qty}× {item.name}
-                    </span>
-                    <span>₹{item.price * item.qty}</span>
-                  </div>
-                ))}
-              </div>
+          ) : (
+            <div className="space-y-4">
+              {/* ITEMS */}
+              {activeOrder.items.map((item, i) => (
+                <div key={i} className="flex justify-between text-sm">
+                  <span>{item.qty}× {item.name}</span>
+                  <span>₹{item.qty * item.price}</span>
+                </div>
+              ))}
 
-              {/* Offer Input */}
+              {/* DISCOUNT */}
               <div className="pt-3 border-t space-y-2">
                 <label className="text-sm font-semibold text-gray-600">
-                  Offer (%)
+                  Discount (%)
                 </label>
                 <input
                   type="number"
@@ -266,92 +294,64 @@ export default function CashierDashboard() {
                       Math.min(100, Math.max(0, Number(e.target.value)))
                     )
                   }
-                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-brand-orange"
+                  className="w-full px-3 py-2 border rounded-lg text-sm"
                 />
               </div>
 
-              {/* Totals */}
-              <div className="pt-3 border-t space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span>Subtotal</span>
-                  <span>₹{originalTotal}</span>
-                </div>
-
-                {offerPercent > 0 && (
-                  <div className="flex justify-between text-green-600 font-semibold">
-                    <span>Discount ({offerPercent}%)</span>
-                    <span>- ₹{discountAmount}</span>
-                  </div>
-                )}
-
-                <div className="flex justify-between text-lg font-bold pt-2">
-                  <span>Total</span>
-                  <span className="text-brand-orange">₹{finalPayable}</span>
-                </div>
-              </div>
-
-              {/* Actions */}
-              {/* Payment Type */}
-              <div className="pt-3 border-t space-y-2">
-                <label className="text-sm font-semibold text-gray-600">
-                  Payment Method
-                </label>
-
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <input
-                      type="radio"
-                      name="paymentType"
-                      value="cash"
-                      checked={paymentType === "cash"}
-                      onChange={() => setPaymentType("cash")}
-                    />
-                    Cash
+              {/* PARCEL CHARGE */}
+              {orderMode === "parcel" && (
+                <div className="pt-3 border-t space-y-2">
+                  <label className="text-sm font-semibold text-gray-600">
+                    Parcel / Packing Charge
                   </label>
-
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <input
-                      type="radio"
-                      name="paymentType"
-                      value="online"
-                      checked={paymentType === "online"}
-                      onChange={() => setPaymentType("online")}
-                    />
-                    Online
-                  </label>
-                </div>
-              </div>
-
-              <div className="space-y-3 pt-4">
-                <div className="flex gap-2">
                   <input
-                    type="tel"
-                    placeholder="WhatsApp number (optional)"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                    type="number"
+                    min="0"
+                    value={parcelCharge}
+                    onChange={(e) =>
+                      setParcelCharge(Number(e.target.value) || 0)
+                    }
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    placeholder="Enter parcel charge"
                   />
-                  <button
-                    onClick={handleShareWhatsApp}
-                    className="p-2 bg-green-500 hover:bg-green-600 text-white rounded-lg"
-                  >
-                    <Smartphone size={18} />
-                  </button>
                 </div>
+              )}
 
+              {/* TOTAL */}
+              <div className="flex justify-between font-bold text-lg pt-2">
+                <span>Total</span>
+                <span className="text-brand-orange">
+                  ₹{finalPayable}
+                </span>
+              </div>
+
+              {/* ACTIONS */}
+              <div className="flex gap-2">
+                <input
+                  type="tel"
+                  placeholder="WhatsApp number (optional)"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  className="flex-1 border px-3 py-2 rounded"
+                />
                 <button
-                  onClick={handleCheckout}
-                  className="w-full py-3 bg-brand-orange hover:bg-brand-orangeDark text-white font-bold rounded-lg flex items-center justify-center gap-2"
+                  onClick={handleShareWhatsApp}
+                  className="p-2 bg-green-500 text-white rounded"
                 >
-                  <CheckCircle size={18} />
-                  Mark Paid & Free Table
+                  <Smartphone size={18} />
                 </button>
               </div>
+
+              <button
+                onClick={handleCheckout}
+                className="w-full py-3 bg-brand-orange text-white rounded-lg flex justify-center gap-2"
+              >
+                <CheckCircle />
+                {orderMode === "parcel"
+                  ? "Collect Payment"
+                  : "Mark Paid & Free Table"}
+              </button>
             </div>
-          ) : (
-            <p className="text-center text-gray-500 text-sm">
-              No active order for this table
-            </p>
           )}
         </div>
       </div>

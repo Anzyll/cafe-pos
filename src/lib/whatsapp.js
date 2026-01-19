@@ -23,6 +23,7 @@ export const formatBillToText = (order, tableNumber) => {
   if (order.offerPercent > 0) {
     text += `Discount (${order.offerPercent}%): -₹${order.discountAmount}\n`;
   }
+  if(order)
 
   text += `*Total Payable: ₹${order.finalAmount ?? order.totalAmount}*\n\n`;
 

@@ -33,6 +33,8 @@ function App() {
             {/* Cashier Routes */}
             <Route element={<ProtectedRoute allowedRoles={['cashier', 'admin']} />}>
               <Route path="/cashier" element={<CashierDashboard />} />
+              <Route path="/cashier/parcel" element={<TakeOrder />} />
+
             </Route>
           </Route>
 
